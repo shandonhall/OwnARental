@@ -389,7 +389,7 @@ export function KeysTodayBand() {
         <Reveal delay={120} from="right">
           <a
             href="#contact"
-            className="cta-pulse inline-flex items-center justify-center rounded-md bg-white px-5 py-3.5 text-sm font-semibold uppercase tracking-wide text-[var(--oar-navy)] transition hover:bg-[var(--oar-gold)]"
+            className="btn-primary btn-primary-sm cta-pulse"
           >
             Talk to us now
           </a>
@@ -474,6 +474,41 @@ export function DealHashFocus() {
   }, []);
 
   return null;
+}
+
+export function DealStockGrid() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer = window.setTimeout(() => setReady(true), reduce ? 0 : 520);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="deals-grid mt-10 grid gap-x-4 gap-y-12 pt-8 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
+        {Array.from({ length: 6 }, (_, index) => (
+          <div key={index} className="deal-skeleton">
+            <div className="deal-skeleton-media" />
+            <div className="deal-skeleton-body">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="deals-grid mt-10 grid gap-x-4 gap-y-12 pt-8 sm:grid-cols-2 lg:grid-cols-3">
+      {DEAL_VEHICLES.map((deal, index) => (
+        <DealCard key={deal.id} deal={deal} index={index} />
+      ))}
+    </div>
+  );
 }
 
 export function DealCard({

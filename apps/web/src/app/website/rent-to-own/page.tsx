@@ -67,16 +67,10 @@ export default function RentToOwnPage() {
               every payment.
             </p>
             <div className="hero-actions animate-rise-delay-3 mt-7 flex flex-col gap-3 sm:flex-row">
-              <a
-                href="#contact"
-                className="cta-pulse rounded-md bg-[var(--oar-red)] px-5 py-3.5 text-center text-sm font-semibold uppercase tracking-wide text-white"
-              >
+              <a href="#contact" className="btn-primary cta-pulse">
                 Start rent to own
               </a>
-              <Link
-                href="/website/deals"
-                className="rounded-md border border-white/35 bg-white/10 px-5 py-3.5 text-center text-sm font-semibold uppercase tracking-wide text-white backdrop-blur-sm"
-              >
+              <Link href="/website/deals" className="btn-ghost-on-dark">
                 View deals
               </Link>
             </div>

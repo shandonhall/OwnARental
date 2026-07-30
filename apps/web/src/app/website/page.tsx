@@ -6,10 +6,11 @@ import {
   SiteFooter,
   SiteHeader,
   SitePage,
+  TrustSection,
 } from '@/components/website-chrome';
 import { CountUp, KeysTodayBand, Marquee, Reveal } from '@/components/website-motion';
 import { WebsiteShell } from '@/components/website-shell';
-import { HOME_TICKER } from '@/lib/website-content';
+import { HOME_TICKER, INSPECTION_CHECKS } from '@/lib/website-content';
 
 export default function WebsiteHomePage() {
   return (
@@ -23,14 +24,15 @@ export default function WebsiteHomePage() {
             alt="Own A Rental vehicle"
             fill
             priority
-            className="animate-hero-media object-cover object-[68%_center]"
+            className="hero-media animate-hero-media object-cover object-[68%_center]"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(160deg,rgba(26,40,50,0.97)_0%,rgba(26,40,50,0.82)_48%,rgba(26,40,50,0.45)_100%)]" />
+          <div className="hero-shade absolute inset-0" />
+          <div className="hero-grain pointer-events-none absolute inset-0" aria-hidden />
           <div className="hero-glow pointer-events-none absolute -left-24 top-1/4 h-80 w-80 rounded-full bg-[var(--oar-red)]/30 blur-3xl" />
           <div className="hero-glow pointer-events-none absolute bottom-10 right-10 h-64 w-64 rounded-full bg-[var(--oar-gold)]/25 blur-3xl" />
 
           <div className="hero-copy relative mx-auto flex min-h-[100svh] max-w-6xl flex-col justify-end px-4 pb-24 pt-40 md:px-8 md:pb-32">
-            <p className="animate-rise font-marketing text-[0.7rem] uppercase tracking-[0.28em] text-[var(--oar-gold)] md:text-base">
+            <p className="animate-rise section-eyebrow text-[var(--oar-gold)]">
               Giving you wheels
             </p>
             <h1 className="hero-title animate-rise-delay font-marketing mt-3 max-w-4xl text-5xl font-bold uppercase leading-[0.92] tracking-tight text-white sm:text-6xl md:text-8xl">
@@ -41,21 +43,15 @@ export default function WebsiteHomePage() {
                 Still drive.
               </span>
             </h1>
-            <p className="hero-sub animate-rise-delay-2 mt-4 max-w-xl text-sm leading-relaxed text-white/85 md:mt-6 md:text-xl">
+            <p className="hero-sub animate-rise-delay-2 mt-4 max-w-xl text-sm leading-relaxed text-white/85 md:mt-6 md:text-lg">
               No stress. No judgment. Just keys in hand — built for ITC-listed,
               bank-declined, and first-time buyers.
             </p>
             <div className="hero-actions animate-rise-delay-3 mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap">
-              <a
-                href="#contact"
-                className="cta-pulse rounded-md bg-[var(--oar-red)] px-5 py-3.5 text-center text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-[#a81420]"
-              >
+              <a href="#contact" className="btn-primary cta-pulse">
                 Start your application
               </a>
-              <Link
-                href="/website/deals"
-                className="rounded-md border border-white/40 bg-white/10 px-5 py-3.5 text-center text-sm font-semibold uppercase tracking-wide text-white backdrop-blur-sm transition hover:bg-white/20"
-              >
+              <Link href="/website/deals" className="btn-ghost-on-dark">
                 Browse deals
               </Link>
             </div>
@@ -63,6 +59,8 @@ export default function WebsiteHomePage() {
         </section>
 
         <Marquee items={HOME_TICKER} />
+
+        <TrustSection />
 
         <section className="price-section relative overflow-hidden bg-white px-4 py-16 md:px-8 md:py-24">
           <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[var(--oar-mist)] max-md:hidden" />
@@ -74,7 +72,7 @@ export default function WebsiteHomePage() {
           </p>
           <div className="price-grid relative mx-auto grid max-w-6xl gap-8 md:grid-cols-[1.15fr_0.85fr] md:items-end md:gap-12">
             <Reveal from="left">
-              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-blue)] md:text-sm">
+              <p className="section-eyebrow text-[var(--oar-blue)]">
                 We offer 100% approvals*
               </p>
               <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase leading-[0.92] tracking-tight text-[var(--oar-navy)] md:mt-4 md:text-7xl">
@@ -83,9 +81,13 @@ export default function WebsiteHomePage() {
                   With our care.
                 </span>
               </h2>
-              <p className="section-copy mt-4 max-w-xl text-base text-[var(--oar-navy)]/75 md:mt-6 md:text-lg">
+              <p className="section-copy mt-4 max-w-xl md:mt-6">
                 We&apos;re not here to talk credit scores — we&apos;re here to get
                 you driving. Clear monthly rates. Real people on the phone.
+              </p>
+              <p className="legal-note mt-4 max-w-xl">
+                *Subject to affordability. Final terms, CIP, insurance and extras
+                are confirmed with you before you drive.
               </p>
             </Reveal>
             <Reveal className="price-block md:text-right" delay={140} from="right">
@@ -97,7 +99,7 @@ export default function WebsiteHomePage() {
                   <CountUp value={4426} />
                 </p>
                 <p className="mt-3 max-w-xs text-sm text-white/70 md:ml-auto">
-                  Estimated monthly · insurance, warranty &amp; freedom in the plan
+                  Estimated monthly · confirm inclusions with the team
                 </p>
                 <div className="mt-5 h-1.5 w-24 bg-[var(--oar-gold)] md:ml-auto" />
               </div>
@@ -112,7 +114,7 @@ export default function WebsiteHomePage() {
           <div className="pointer-events-none absolute -right-20 top-10 h-72 w-72 rounded-full bg-[var(--oar-red)]/20 blur-3xl" />
           <div className="mx-auto max-w-6xl">
             <Reveal from="left">
-              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-gold)] md:text-sm">
+              <p className="section-eyebrow text-[var(--oar-gold)]">
                 Choose your path
               </p>
               <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase tracking-tight text-white md:text-6xl">
@@ -129,7 +131,7 @@ export default function WebsiteHomePage() {
                 >
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(22,128,171,0.35),transparent_55%)] transition duration-500 group-hover:opacity-100" />
                   <div className="relative">
-                    <p className="font-marketing text-xs uppercase tracking-[0.2em] text-[var(--oar-gold)] md:text-sm">
+                    <p className="section-eyebrow text-[var(--oar-gold)]">
                       01 · Long-term rental
                     </p>
                     <h3 className="option-title font-marketing mt-3 text-3xl font-bold uppercase leading-none md:mt-4 md:text-4xl">
@@ -137,7 +139,7 @@ export default function WebsiteHomePage() {
                       <br />
                       driving
                     </h3>
-                    <p className="mt-4 max-w-sm text-sm text-white/75 md:mt-5 md:text-base">
+                    <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/75 md:mt-5 md:text-base">
                       1–12 months. 2,500 km free each month. Insurance and
                       maintenance handled. Swap after a year if it&apos;s not
                       vibing.
@@ -155,7 +157,7 @@ export default function WebsiteHomePage() {
                 >
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,176,36,0.28),transparent_55%)]" />
                   <div className="relative">
-                    <p className="font-marketing text-xs uppercase tracking-[0.2em] text-white/80 md:text-sm">
+                    <p className="section-eyebrow text-white/80">
                       02 · Rent to own
                     </p>
                     <h3 className="option-title font-marketing mt-3 text-3xl font-bold uppercase leading-none md:mt-4 md:text-4xl">
@@ -163,7 +165,7 @@ export default function WebsiteHomePage() {
                       <br />
                       own speed
                     </h3>
-                    <p className="mt-4 max-w-sm text-sm text-white/85 md:mt-5 md:text-base">
+                    <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/85 md:mt-5 md:text-base">
                       Pick the car, we build the plan, you drive off. Every payment
                       moves you closer to ownership — ITC listing or not.
                     </p>
@@ -181,7 +183,7 @@ export default function WebsiteHomePage() {
                 className="deals-banner group flex flex-col gap-3 border border-[var(--oar-gold)]/35 bg-[var(--oar-gold)]/10 px-5 py-6 transition hover:bg-[var(--oar-gold)]/20 md:flex-row md:items-center md:justify-between md:px-8"
               >
                 <div>
-                  <p className="font-marketing text-xs uppercase tracking-[0.22em] text-[var(--oar-gold)]">
+                  <p className="section-eyebrow text-[var(--oar-gold)]">
                     Live stock
                   </p>
                   <p className="font-marketing mt-1 text-2xl font-bold uppercase text-white md:text-3xl">
@@ -205,9 +207,9 @@ export default function WebsiteHomePage() {
           >
             CARE
           </p>
-          <div className="care-grid relative mx-auto grid max-w-6xl gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center md:gap-12">
+          <div className="care-grid relative mx-auto grid max-w-6xl gap-10 md:grid-cols-[1.05fr_0.95fr] md:items-center md:gap-14">
             <Reveal from="left">
-              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-red)] md:text-sm">
+              <p className="section-eyebrow text-[var(--oar-red)]">
                 Pre-loved, not pre-judged
               </p>
               <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase leading-[0.92] tracking-tight text-[var(--oar-navy)] md:mt-4 md:text-6xl">
@@ -215,21 +217,35 @@ export default function WebsiteHomePage() {
                 <br />
                 Ready to go.
               </h2>
-              <p className="section-copy mt-4 max-w-xl text-base text-[var(--oar-navy)]/75 md:mt-6 md:text-lg">
+              <p className="section-copy mt-4 max-w-xl md:mt-6">
                 Every car is vetted — safe, clean, road-trip worthy. Tracking,
-                warranty, insurance and admin are in the number you see.
+                warranty, insurance and admin are discussed before you sign.
               </p>
+              <ul className="inspect-list mt-6 space-y-3">
+                {INSPECTION_CHECKS.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
             </Reveal>
-            <Reveal className="care-mark justify-self-start md:justify-self-end" delay={140} from="right">
-              <div className="relative">
-                <div className="absolute -inset-6 rounded-full bg-[var(--oar-gold)]/25 blur-2xl" />
+            <Reveal delay={140} from="right">
+              <div className="lifestyle-frame">
                 <Image
-                  src="/brand/we-care.svg"
-                  alt="We care"
-                  width={220}
-                  height={178}
-                  className="relative h-24 w-auto md:h-44"
+                  src="/brand/deals/car-7.webp"
+                  alt="Inspected Own A Rental vehicle"
+                  width={720}
+                  height={540}
+                  className="lifestyle-photo"
                 />
+                <div className="lifestyle-caption">
+                  <Image
+                    src="/brand/we-care.svg"
+                    alt="We care"
+                    width={120}
+                    height={97}
+                    className="h-12 w-auto"
+                  />
+                  <p>Handover-ready stock · Randburg</p>
+                </div>
               </div>
             </Reveal>
           </div>

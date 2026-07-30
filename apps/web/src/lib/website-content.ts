@@ -236,6 +236,54 @@ export const RENTAL_EXCLUDES = [
   'Tyres, rims & glass (per policy)',
 ] as const;
 
+export const TRUST_PILLARS = [
+  {
+    title: 'Dealer trusted',
+    copy: 'Chosen by dealerships who need a reliable partner for restricted clients.',
+  },
+  {
+    title: 'Inspected stock',
+    copy: 'Roadworthy checks, tracking fitted, and condition logged before handover.',
+  },
+  {
+    title: 'Clear monthlys',
+    copy: 'Know the number upfront — CIP, instalments, and what’s included.',
+  },
+] as const;
+
+export const INSPECTION_CHECKS = [
+  'Mechanical & roadworthy check',
+  'Interior & exterior condition report',
+  'Tracker installed & tested',
+  'Insurance & warranty options confirmed',
+] as const;
+
+export const CLIENT_QUOTES = [
+  {
+    quote:
+      'Bank said no. Own A Rental said bring your payslips. I was driving the same week.',
+    name: 'Thabo M.',
+    detail: 'Rent to own · Randburg',
+  },
+  {
+    quote:
+      'No judgment, no runaround — just a clear monthly and keys in hand.',
+    name: 'Lebo K.',
+    detail: 'Long-term rental · Johannesburg',
+  },
+] as const;
+
+export const SITE_CONTACT = {
+  phonePrimary: '+27 11 477 6222',
+  phonePrimaryTel: '+27114776222',
+  phoneSecondary: '+27 71 040 7799',
+  phoneSecondaryTel: '+27710407799',
+  email: 'sales@ownarental.co.za',
+  whatsapp: 'https://wa.me/27710407799',
+  address: '1 Main Road, Newlands, Randburg, 2092',
+  hours: 'Mon–Fri 08:00–17:00 · Sat by appointment',
+} as const;
+
 export function formatRand(value: number): string {
   return `R${value.toLocaleString('en-ZA')}`;
 }
