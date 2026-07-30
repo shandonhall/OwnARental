@@ -110,6 +110,8 @@ update users set role = 'ADMIN' where email = 'you@ownarental.co.za';
 - `/` (Today overview — default after login)
 - `/map`
 - `/website` (modern marketing site preview for demos)
+  - `/website/monthly`, `/website/rent-to-own`, `/website/deals`
+  - Drag/tap “Keys as soon as today” strip → deal card (`#deal-{id}`)
 - Vehicle detail: Sync CarTrack, mileage/service prediction, Super Admin immobilize
 
 **Env (optional live CarTrack)**
@@ -120,3 +122,12 @@ CARTRACK_API_KEY=...
 ```
 
 Add to `prisma/.env` (loaded by the Nest API). Leave unset to use the Randburg-area mock provider.
+
+## Backups
+
+| Location | What |
+|----------|------|
+| [GitHub `shandonhall/OwnARental`](https://github.com/shandonhall/OwnARental) | Code on `main` (env files ignored) |
+| USB `H:\OwnARental\` | `SETUP-ON-NEW-MACHINE.txt`, `secrets\`, `project-full\` |
+
+See `SETUP-ON-NEW-MACHINE.txt` for clone + env restore steps on a new machine. Never commit `secrets\` or `.env*` files.

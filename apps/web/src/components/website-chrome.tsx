@@ -146,9 +146,10 @@ export function QualifySection({
   title?: ReactNode;
 }) {
   return (
-    <section id="apply" className="apply-section px-4 py-16 md:px-8 md:py-24">
+    <section id="apply" className="apply-section relative overflow-hidden bg-white px-4 py-16 md:px-8 md:py-24">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-2 bg-[var(--oar-red)]" />
       <div className="mx-auto max-w-6xl">
-        <Reveal>
+        <Reveal from="left">
           <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-blue)] md:text-sm">
             {eyebrow}
           </p>
@@ -163,8 +164,12 @@ export function QualifySection({
 
         <ul className="qualify-grid mt-8 grid gap-2 sm:grid-cols-2 md:mt-12 md:gap-3 lg:grid-cols-5">
           {QUALIFY_ITEMS.map((item, index) => (
-            <Reveal key={item} delay={index * 70}>
-              <li className="qualify-item relative overflow-hidden bg-[var(--oar-mist)] px-4 py-5 md:py-6">
+            <Reveal
+              key={item}
+              delay={index * 80}
+              from={index % 2 === 0 ? 'left' : 'right'}
+            >
+              <li className="qualify-item relative overflow-hidden border-l-4 border-[var(--oar-gold)] bg-[var(--oar-mist)] px-4 py-5 md:py-6">
                 <span className="font-marketing text-2xl font-bold text-[var(--oar-gold)] md:text-3xl">
                   {String(index + 1).padStart(2, '0')}
                 </span>
@@ -191,7 +196,7 @@ export function ContactSection({
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(192,23,37,0.25),transparent_40%),radial-gradient(circle_at_80%_80%,rgba(22,128,171,0.25),transparent_42%)]" />
       <div className="contact-grid relative mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:gap-12">
-        <Reveal>
+        <Reveal from="left">
           <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-gold)] md:text-sm">
             Still got questions?
           </p>
@@ -239,8 +244,7 @@ export function ContactSection({
           </dl>
         </Reveal>
 
-        <Reveal delay={120}>
-          <form
+        <Reveal delay={160} from="right">          <form
             className="contact-form space-y-4 bg-white p-5 text-[var(--oar-ink)] md:p-8"
             action="mailto:sales@ownarental.co.za"
             method="get"

@@ -89,6 +89,17 @@ Staff access the dashboard via a **login screen** (email + password) powered by 
 
 ---
 
+## 5c. Marketing Website Demo (`/website`)
+A modern Own A Rental marketing site lives under the Next.js app for client demos (Desktop/Mobile preview shell). It mirrors live messaging while using brand assets in `apps/web/public/brand/`.
+
+*   **Routes:** `/website`, `/website/monthly`, `/website/rent-to-own`, `/website/deals`
+*   **Shared UI:** `website-chrome`, `website-motion`, `website-shell`, `website.css`, `lib/website-content.ts`
+*   **Motion & contrast:** Side-in section reveals, stronger navy/mist/white section banding, deal-card spotlight/"Ready now" polish
+*   **Keys band:** Mid-page â€œKeys as soon as todayâ€ car strip â€” drag to scrub stock; tap a vehicle to open its deal card on `/website/deals#deal-{id}` (scroll + highlight)
+*   **Deals:** Stock cards with real photos + CIP rate calculator
+
+---
+
 ## 6. Development Phases & Rollout
 
 | Phase | Focus Area | Core Deliverables |
@@ -99,6 +110,7 @@ Staff access the dashboard via a **login screen** (email + password) powered by 
 | **Phase 4: Dashboard UI** | Overview & Brand Match | KPI Banner, Global Search, matching website CSS variables, Notification center setup. |
 | **Phase 5: Automation** | Webhooks & Comms | Automated SMS/WhatsApp, Driver Scoring, Immobilization trigger. |
 | **Phase 6: Advanced** | Pipeline & Fines | End-of-Term Kanban board, Traffic fine API integration, Automated Fines invoicing. |
+| **Demo site (ongoing)** | Marketing preview | `/website` pages, interactive deals carousel, CIP calculator, Desktop/Mobile shell. |
 
 ---
 
@@ -139,3 +151,22 @@ By leveraging GoHighLevel API v2 and Webhooks, we will offload all CRM and messa
 *   **Native Meta WhatsApp & SMS Routing:** All client communications (e.g., payment reminders, geo-fence alerts, speeding warnings) will be triggered via webhooks sent from the NestJS backend to GoHighLevel Workflows. GHL will handle the actual sending using its SMS gateways and official Meta WhatsApp integration.
 *   **Bi-Directional CRM Sync:** When a client is added or updated in the custom dashboard, their corresponding GHL Contact profile is automatically tagged and updated via the GHL API.
 *   **Automated Pipeline Management:** The custom application will calculate when a client reaches the final 90 days of their rent-to-own contract. It will then automatically push them into a dedicated GHL Opportunity Pipeline. The sales team will manage the final handover and balloon payments visually within GoHighLevel.
+
+## 10. Operational Security & Edge Cases (The Safety Net)
+
+To protect the business legally and operationally, the system will include the following safeguards:
+
+*   **POPIA Compliant Document Storage:** All required client FICA documents (ID, License, Proof of Residence, 6-Month Bank Statements, 6-Month Payslips) will be uploaded to a secure, encrypted cloud bucket (e.g., AWS S3). The database will only store secure URL pointers, never the raw files.
+*   **Strict Role-Based Access Control (RBAC):** The system will enforce strict user roles (e.g., Viewer, Agent, Fleet Manager, Super Admin). Critical functions, specifically the **Remote Vehicle Immobilization via CarTrack**, will be hard-coded to require Super Admin authentication.
+*   **Insurance & Warranty Ledger:** The Vehicles database table will include dedicated fields to track active insurance policy numbers, warranty providers, and expiration dates/mileage limits, ensuring the business is covered in the event of an accident or breakdown.
+*   **Digital Condition Reports (Handover/Return):** The UI will include a module on the Vehicle Profile to log timestamped photos and notes regarding exterior/interior damage during client handovers or vehicle recoveries, preventing end-of-term liability disputes.
+### Database & Infrastructure (Updated)
+*   **Database Host:** Supabase (Managed PostgreSQL, providing instant POPIA-compliant File Storage for FICA docs, Auth/RBAC, and Realtime WebSockets for live CarTrack alerts).
+*   **ORM:** Prisma (Connects Next.js/NestJS to Supabase for compile-time type safety and smooth schema migrations).
+
+---
+
+## 11. Backups
+*   **GitHub:** https://github.com/shandonhall/OwnARental (`main`) - source of truth for code (no env secrets).
+*   **Local/USB:** `H:\OwnARental\` - `SETUP-ON-NEW-MACHINE.txt`, `secrets\` (env only), `project-full\` (full working tree). Re-sync after major demo/UI pushes.
+*   Repo copy of setup steps: `SETUP-ON-NEW-MACHINE.txt` (paths assume USB drive `H:` - adjust letter as needed).

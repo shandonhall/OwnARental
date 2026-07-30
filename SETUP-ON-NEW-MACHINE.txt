@@ -1,0 +1,94 @@
+Own A Rental - setup on a new machine (Cursor)
+==============================================
+
+Repo (code backup):
+  https://github.com/shandonhall/OwnARental
+
+USB folder (recommended companion backup):
+  H:\OwnARental\
+    1) secrets\                  - env key files (required for GitHub clone path)
+    2) SETUP-ON-NEW-MACHINE.txt  - these instructions (keep in sync with repo copy)
+    3) project-full\             - FULL local project backup
+                                   includes node_modules, .git, source, assets
+                                   (excludes only .cursor)
+
+Do not commit the secrets folder or .env files to GitHub.
+
+Marketing demo once running:
+  http://localhost:3000/website
+  http://localhost:3000/website/deals
+  Drag the “Keys as soon as today” strip; tap a car to open its deal card.
+
+================================================
+OPTION A - Prefer this: clone from GitHub (smaller)
+================================================
+1) Clone
+  git clone https://github.com/shandonhall/OwnARental.git
+  cd OwnARental
+
+  Or in Cursor: File > New Window > Clone Repo >
+  https://github.com/shandonhall/OwnARental
+
+2) Copy secrets from the USB
+  secrets\apps-web.env.local  -->  OwnARental\apps\web\.env.local
+  secrets\prisma.env          -->  OwnARental\prisma\.env
+
+  PowerShell (adjust drive letter if needed):
+  Copy-Item "H:\OwnARental\secrets\apps-web.env.local" ".\apps\web\.env.local"
+  Copy-Item "H:\OwnARental\secrets\prisma.env" ".\prisma\.env"
+
+3) Install + generate
+  npm install
+  npm run prisma:generate
+
+  If DB empty:
+  npm run prisma:push
+  npm run prisma:seed
+
+4) Run
+  npm run dev:api
+  npm run dev:web
+
+  http://localhost:3000
+  http://localhost:3000/website
+
+================================================
+OPTION B - Offline / just-in-case: use project-full
+================================================
+If GitHub or npm is unavailable, copy the whole folder:
+
+  H:\OwnARental\project-full  -->  e.g. Desktop\OwnARental
+
+Then:
+  1) Open that folder in Cursor
+  2) Confirm env files exist:
+       apps\web\.env.local
+       prisma\.env
+     (If missing, copy from secrets\ as in Option A)
+  3) You may already have node_modules. If apps fail:
+       npm install
+       npm run prisma:generate
+  4) Run:
+       npm run dev:api
+       npm run dev:web
+
+Note: project-full already includes a local .git linked to
+https://github.com/shandonhall/OwnARental so you can still
+git pull / git push after connecting to the internet.
+
+------------------------------------------------
+After major website / dashboard changes
+------------------------------------------------
+1) Commit + push to GitHub (main)
+2) Re-copy this SETUP file onto the USB
+3) Refresh project-full\ with robocopy (or copy) from the Desktop project
+4) Confirm secrets\ still has current env files (do not commit them)
+
+------------------------------------------------
+Security reminder
+------------------------------------------------
+Keep the USB private. secrets\ has live database and
+Supabase credentials. Prefer deleting secrets from the
+USB after copying them onto the new machine.
+
+Last updated: 2026-07-30

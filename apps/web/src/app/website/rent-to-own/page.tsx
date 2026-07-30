@@ -7,7 +7,7 @@ import {
   SiteHeader,
   SitePage,
 } from '@/components/website-chrome';
-import { CountUp, Marquee, Reveal } from '@/components/website-motion';
+import { CountUp, KeysTodayBand, Marquee, Reveal } from '@/components/website-motion';
 import { WebsiteShell } from '@/components/website-shell';
 import { RTO_TICKER } from '@/lib/website-content';
 
@@ -85,9 +85,9 @@ export default function RentToOwnPage() {
 
         <Marquee items={RTO_TICKER} />
 
-        <section className="journey-section px-4 py-16 md:px-8 md:py-24">
+        <section className="journey-section bg-white px-4 py-16 md:px-8 md:py-24">
           <div className="mx-auto max-w-6xl">
-            <Reveal>
+            <Reveal from="left">
               <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-blue)]">
                 Your path to ownership
               </p>
@@ -99,8 +99,11 @@ export default function RentToOwnPage() {
 
             <ol className="journey-rail mt-12 grid gap-4 md:grid-cols-4 md:gap-0">
               {ownershipSteps.map((step, index) => (
-                <Reveal key={step.label} delay={index * 110}>
-                  <li className="journey-step relative bg-[var(--oar-mist)] px-5 py-7 md:bg-transparent md:px-4 md:py-0">
+                <Reveal
+                  key={step.label}
+                  delay={index * 110}
+                  from={index % 2 === 0 ? 'left' : 'right'}
+                >                  <li className="journey-step relative bg-[var(--oar-mist)] px-5 py-7 md:bg-transparent md:px-4 md:py-0">
                     <div className="journey-node">
                       <span>{String(index + 1).padStart(2, '0')}</span>
                     </div>
@@ -128,7 +131,7 @@ export default function RentToOwnPage() {
             OWN
           </p>
           <div className="relative mx-auto grid max-w-6xl gap-10 md:grid-cols-[1.1fr_0.9fr] md:items-center">
-            <Reveal>
+            <Reveal from="left">
               <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-gold)]">
                 Pre-loved, not pre-judged
               </p>
@@ -161,8 +164,7 @@ export default function RentToOwnPage() {
                 </div>
               </div>
             </Reveal>
-            <Reveal delay={120} className="justify-self-start md:justify-self-end">
-              <div className="relative">
+            <Reveal delay={140} className="justify-self-start md:justify-self-end" from="right">              <div className="relative">
                 <div className="absolute -inset-8 rounded-full bg-[var(--oar-red)]/20 blur-3xl" />
                 <Image
                   src="/brand/we-care.svg"
@@ -175,6 +177,8 @@ export default function RentToOwnPage() {
             </Reveal>
           </div>
         </section>
+
+        <KeysTodayBand />
 
         <QualifySection
           eyebrow="You qualify if you have"

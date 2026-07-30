@@ -7,7 +7,7 @@ import {
   SiteHeader,
   SitePage,
 } from '@/components/website-chrome';
-import { CountUp, Marquee, Reveal } from '@/components/website-motion';
+import { CountUp, KeysTodayBand, Marquee, Reveal } from '@/components/website-motion';
 import { WebsiteShell } from '@/components/website-shell';
 import {
   MONTHLY_TICKER,
@@ -81,9 +81,9 @@ export default function MonthlyRentalPage() {
 
         <Marquee items={MONTHLY_TICKER} />
 
-        <section className="feature-section px-4 py-16 md:px-8 md:py-24">
+        <section className="feature-section bg-white px-4 py-16 md:px-8 md:py-24">
           <div className="mx-auto max-w-6xl">
-            <Reveal>
+            <Reveal from="left">
               <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-blue)]">
                 How it works
               </p>
@@ -95,8 +95,11 @@ export default function MonthlyRentalPage() {
 
             <div className="steps-grid mt-10 grid gap-3 md:mt-14 md:grid-cols-3">
               {steps.map((step, index) => (
-                <Reveal key={step.title} delay={index * 100}>
-                  <article className="step-card bg-[var(--oar-mist)] px-5 py-7 md:min-h-[16rem] md:px-6">
+                <Reveal
+                  key={step.title}
+                  delay={index * 110}
+                  from={index % 2 === 0 ? 'left' : 'right'}
+                >                  <article className="step-card bg-[var(--oar-mist)] px-5 py-7 md:min-h-[16rem] md:px-6">
                     <span className="font-marketing text-3xl font-bold text-[var(--oar-gold)]">
                       {String(index + 1).padStart(2, '0')}
                     </span>
@@ -116,7 +119,7 @@ export default function MonthlyRentalPage() {
         <section className="split-band relative overflow-hidden bg-[var(--oar-navy)] px-4 py-16 text-white md:px-8 md:py-24">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(22,128,171,0.35),transparent_40%)]" />
           <div className="relative mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
-            <Reveal>
+            <Reveal from="left">
               <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-gold)]">
                 From
               </p>
@@ -128,8 +131,7 @@ export default function MonthlyRentalPage() {
                 can rent the whole lifestyle?
               </p>
             </Reveal>
-            <Reveal delay={120}>
-              <div className="include-grid grid gap-3 sm:grid-cols-2">
+            <Reveal delay={140} from="right">              <div className="include-grid grid gap-3 sm:grid-cols-2">
                 <div className="include-panel">
                   <p className="font-marketing text-xs uppercase tracking-[0.2em] text-[var(--oar-gold)]">
                     Rates include
@@ -160,6 +162,8 @@ export default function MonthlyRentalPage() {
             </Reveal>
           </div>
         </section>
+
+        <KeysTodayBand />
 
         <QualifySection
           eyebrow="Ready for monthly rental?"

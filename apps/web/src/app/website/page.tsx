@@ -7,7 +7,7 @@ import {
   SiteHeader,
   SitePage,
 } from '@/components/website-chrome';
-import { CountUp, Marquee, Reveal } from '@/components/website-motion';
+import { CountUp, KeysTodayBand, Marquee, Reveal } from '@/components/website-motion';
 import { WebsiteShell } from '@/components/website-shell';
 import { HOME_TICKER } from '@/lib/website-content';
 
@@ -64,15 +64,16 @@ export default function WebsiteHomePage() {
 
         <Marquee items={HOME_TICKER} />
 
-        <section className="price-section relative overflow-hidden bg-[var(--oar-mist)] px-4 py-16 md:px-8 md:py-24">
+        <section className="price-section relative overflow-hidden bg-white px-4 py-16 md:px-8 md:py-24">
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[var(--oar-mist)] max-md:hidden" />
           <p
-            className="giant-type pointer-events-none absolute -right-4 top-8 font-marketing select-none text-[var(--oar-navy)]/[0.05] md:right-8"
+            className="giant-type pointer-events-none absolute -right-4 top-8 font-marketing select-none text-[var(--oar-navy)]/[0.06] md:right-8"
             aria-hidden
           >
             DRIVE
           </p>
           <div className="price-grid relative mx-auto grid max-w-6xl gap-8 md:grid-cols-[1.15fr_0.85fr] md:items-end md:gap-12">
-            <Reveal>
+            <Reveal from="left">
               <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-blue)] md:text-sm">
                 We offer 100% approvals*
               </p>
@@ -87,38 +88,44 @@ export default function WebsiteHomePage() {
                 you driving. Clear monthly rates. Real people on the phone.
               </p>
             </Reveal>
-            <Reveal className="price-block md:text-right" delay={120}>
-              <p className="font-marketing text-xs uppercase tracking-[0.22em] text-[var(--oar-grey)]">
-                From
-              </p>
-              <p className="price-figure font-marketing mt-2 text-5xl font-bold leading-none text-[var(--oar-navy)] md:text-7xl">
-                <CountUp value={4426} />
-              </p>
-              <p className="mt-3 text-sm text-[var(--oar-grey)] md:ml-auto md:max-w-xs">
-                Estimated monthly · insurance, warranty &amp; freedom in the plan
-              </p>
-              <div className="mt-5 h-1.5 w-24 bg-[var(--oar-gold)] md:ml-auto" />
+            <Reveal className="price-block md:text-right" delay={140} from="right">
+              <div className="price-panel inline-block bg-[var(--oar-navy)] px-6 py-7 text-left text-white md:ml-auto md:px-8 md:py-9 md:text-right">
+                <p className="font-marketing text-xs uppercase tracking-[0.22em] text-[var(--oar-gold)]">
+                  From
+                </p>
+                <p className="price-figure font-marketing mt-2 text-5xl font-bold leading-none md:text-7xl">
+                  <CountUp value={4426} />
+                </p>
+                <p className="mt-3 max-w-xs text-sm text-white/70 md:ml-auto">
+                  Estimated monthly · insurance, warranty &amp; freedom in the plan
+                </p>
+                <div className="mt-5 h-1.5 w-24 bg-[var(--oar-gold)] md:ml-auto" />
+              </div>
             </Reveal>
           </div>
         </section>
 
-        <section id="options" className="options-section px-4 py-16 md:px-8 md:py-24">
+        <section
+          id="options"
+          className="options-section relative overflow-hidden bg-[var(--oar-navy)] px-4 py-16 text-white md:px-8 md:py-24"
+        >
+          <div className="pointer-events-none absolute -right-20 top-10 h-72 w-72 rounded-full bg-[var(--oar-red)]/20 blur-3xl" />
           <div className="mx-auto max-w-6xl">
-            <Reveal>
-              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-grey)] md:text-sm">
+            <Reveal from="left">
+              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-gold)] md:text-sm">
                 Choose your path
               </p>
-              <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase tracking-tight text-[var(--oar-navy)] md:text-6xl">
+              <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase tracking-tight text-white md:text-6xl">
                 Two ways to
                 <span className="text-[var(--oar-blue)]"> get moving</span>
               </h2>
             </Reveal>
 
             <div className="options-grid mt-8 grid gap-3 md:mt-14 md:grid-cols-2 md:gap-0">
-              <Reveal>
+              <Reveal from="left">
                 <Link
                   href="/website/monthly"
-                  className="option-card group relative block overflow-hidden bg-[var(--oar-navy)] px-5 py-8 text-white md:min-h-[22rem] md:px-8 md:py-12"
+                  className="option-card group relative block overflow-hidden bg-[#121c24] px-5 py-8 text-white md:min-h-[22rem] md:px-8 md:py-12"
                 >
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(22,128,171,0.35),transparent_55%)] transition duration-500 group-hover:opacity-100" />
                   <div className="relative">
@@ -141,7 +148,7 @@ export default function WebsiteHomePage() {
                   </div>
                 </Link>
               </Reveal>
-              <Reveal delay={100}>
+              <Reveal delay={120} from="right">
                 <Link
                   href="/website/rent-to-own"
                   className="option-card group relative block overflow-hidden bg-[var(--oar-red)] px-5 py-8 text-white md:min-h-[22rem] md:px-8 md:py-12"
@@ -168,20 +175,20 @@ export default function WebsiteHomePage() {
               </Reveal>
             </div>
 
-            <Reveal className="mt-6 md:mt-8">
+            <Reveal className="mt-6 md:mt-8" from="up" delay={80}>
               <Link
                 href="/website/deals"
-                className="deals-banner group flex flex-col gap-3 bg-[var(--oar-mist)] px-5 py-6 transition hover:bg-[#e4ecf1] md:flex-row md:items-center md:justify-between md:px-8"
+                className="deals-banner group flex flex-col gap-3 border border-[var(--oar-gold)]/35 bg-[var(--oar-gold)]/10 px-5 py-6 transition hover:bg-[var(--oar-gold)]/20 md:flex-row md:items-center md:justify-between md:px-8"
               >
                 <div>
-                  <p className="font-marketing text-xs uppercase tracking-[0.22em] text-[var(--oar-blue)]">
+                  <p className="font-marketing text-xs uppercase tracking-[0.22em] text-[var(--oar-gold)]">
                     Live stock
                   </p>
-                  <p className="font-marketing mt-1 text-2xl font-bold uppercase text-[var(--oar-navy)] md:text-3xl">
+                  <p className="font-marketing mt-1 text-2xl font-bold uppercase text-white md:text-3xl">
                     See today&apos;s deals
                   </p>
                 </div>
-                <span className="option-link inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[var(--oar-red)]">
+                <span className="option-link inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[var(--oar-gold)]">
                   Browse vehicles <span aria-hidden>→</span>
                 </span>
               </Link>
@@ -189,31 +196,33 @@ export default function WebsiteHomePage() {
           </div>
         </section>
 
-        <section className="care-section slash-top relative overflow-hidden bg-[var(--oar-navy)] px-4 py-16 text-white md:px-8 md:py-28">
+        <KeysTodayBand />
+
+        <section className="care-section relative overflow-hidden bg-[var(--oar-mist)] px-4 py-16 md:px-8 md:py-28">
           <p
-            className="giant-type pointer-events-none absolute bottom-0 left-0 font-marketing select-none text-white/[0.04]"
+            className="giant-type pointer-events-none absolute bottom-0 left-0 font-marketing select-none text-[var(--oar-navy)]/[0.05]"
             aria-hidden
           >
             CARE
           </p>
           <div className="care-grid relative mx-auto grid max-w-6xl gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center md:gap-12">
-            <Reveal>
-              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-gold)] md:text-sm">
+            <Reveal from="left">
+              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-red)] md:text-sm">
                 Pre-loved, not pre-judged
               </p>
-              <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase leading-[0.92] tracking-tight md:mt-4 md:text-6xl">
+              <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase leading-[0.92] tracking-tight text-[var(--oar-navy)] md:mt-4 md:text-6xl">
                 Inspected.
                 <br />
                 Ready to go.
               </h2>
-              <p className="section-copy mt-4 max-w-xl text-base text-white/75 md:mt-6 md:text-lg">
+              <p className="section-copy mt-4 max-w-xl text-base text-[var(--oar-navy)]/75 md:mt-6 md:text-lg">
                 Every car is vetted — safe, clean, road-trip worthy. Tracking,
                 warranty, insurance and admin are in the number you see.
               </p>
             </Reveal>
-            <Reveal className="care-mark justify-self-start md:justify-self-end" delay={100}>
+            <Reveal className="care-mark justify-self-start md:justify-self-end" delay={140} from="right">
               <div className="relative">
-                <div className="absolute -inset-6 rounded-full bg-[var(--oar-gold)]/20 blur-2xl" />
+                <div className="absolute -inset-6 rounded-full bg-[var(--oar-gold)]/25 blur-2xl" />
                 <Image
                   src="/brand/we-care.svg"
                   alt="We care"

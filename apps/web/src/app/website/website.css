@@ -116,20 +116,43 @@
 
 .website-root .reveal {
   opacity: 0;
-  transform: translateY(36px);
+  transform: translate3d(0, 40px, 0);
   transition:
-    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.website-root .reveal-from-up {
+  transform: translate3d(0, 44px, 0);
+}
+
+.website-root .reveal-from-left {
+  transform: translate3d(-56px, 18px, 0);
+}
+
+.website-root .reveal-from-right {
+  transform: translate3d(56px, 18px, 0);
+}
+
+.website-root .reveal-from-fade {
+  transform: none;
 }
 
 .website-root .reveal-in {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate3d(0, 0, 0);
 }
 
-.website-root .reveal-fade,
-.website-root .reveal-fade.reveal-in {
-  transform: none;
+@media (prefers-reduced-motion: reduce) {
+  .website-root .reveal,
+  .website-root .reveal-from-up,
+  .website-root .reveal-from-left,
+  .website-root .reveal-from-right {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 
 .website-root .marquee {
@@ -369,6 +392,18 @@
 .website-compact {
   overflow-x: clip;
   max-width: 100%;
+}
+
+.website-compact .reveal-from-left {
+  transform: translate3d(-28px, 12px, 0);
+}
+
+.website-compact .reveal-from-right {
+  transform: translate3d(28px, 12px, 0);
+}
+
+.website-compact .reveal-from-up {
+  transform: translate3d(0, 28px, 0);
 }
 
 .website-compact .desktop-nav {
@@ -773,6 +808,18 @@
   overflow: visible;
   background: transparent;
   border: 0;
+  scroll-margin-top: 6rem;
+  transition: box-shadow 0.45s ease;
+}
+
+.website-root .deal-card.is-deal-focused .deal-card-body {
+  box-shadow:
+    0 0 0 2px var(--oar-gold),
+    0 24px 48px rgba(234, 176, 36, 0.28);
+}
+
+.website-root .deal-card.is-deal-focused .deal-ready-chip {
+  animation: oar-pulse 0.9s ease 2;
 }
 
 .website-root .deal-card-media {
@@ -782,6 +829,73 @@
   margin: 0 0.2rem -2.75rem;
   overflow: visible;
   pointer-events: auto;
+}
+
+.website-root .deal-card-spotlight {
+  position: absolute;
+  left: 50%;
+  top: -10%;
+  z-index: 0;
+  width: 78%;
+  height: 85%;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 35%,
+    color-mix(in srgb, var(--deal-accent, var(--oar-gold)) 42%, transparent) 0%,
+    transparent 68%
+  );
+  filter: blur(10px);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.website-root .deal-card:hover .deal-card-spotlight {
+  opacity: 0.9;
+  transform: scale(1.12);
+}
+
+.website-root .deal-ready-chip {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.35rem;
+  z-index: 3;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: var(--oar-red);
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: white;
+  box-shadow: 0 8px 18px rgba(192, 23, 37, 0.35);
+  pointer-events: none;
+}
+
+.website-root .deal-card-reflection {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -0.15rem;
+  height: 42%;
+  z-index: -1;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.22),
+    transparent 70%
+  );
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), transparent);
+  transform: scaleY(-1);
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 0.55s ease;
+}
+
+.website-root .deal-card:hover .deal-card-reflection {
+  opacity: 0.55;
 }
 
 .website-root .deal-card-photo-wrap {
@@ -1111,5 +1225,159 @@
 
 .website-root .phone-screen .page-hero .hero-copy {
   min-height: 70%;
+}
+
+/* —— Keys as soon as today band —— */
+.website-root .keys-band {
+  position: relative;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(192, 23, 37, 0.35), transparent 42%),
+    radial-gradient(circle at 88% 70%, rgba(234, 176, 36, 0.18), transparent 40%),
+    linear-gradient(115deg, #0c141a 0%, #1a2832 52%, #121c24 100%);
+  color: white;
+}
+
+.website-root .keys-band-viewport {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.website-root .keys-band-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.website-root .keys-band-track {
+  position: relative;
+  display: flex;
+  width: max-content;
+  gap: 2.5rem;
+  padding: 0.5rem 1.5rem 1.75rem;
+  will-change: transform;
+}
+
+.website-root .keys-band-car {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.45));
+  opacity: 0.92;
+  transition:
+    transform 0.35s ease,
+    opacity 0.35s ease,
+    filter 0.35s ease;
+}
+
+.website-root .keys-band-car:nth-child(odd) {
+  transform: translateY(6px);
+}
+
+.website-root .keys-band-car:nth-child(even) {
+  transform: translateY(-4px);
+}
+
+.website-root .keys-band-car:hover,
+.website-root .keys-band-car:focus-visible {
+  opacity: 1;
+  filter: drop-shadow(0 22px 24px rgba(0, 0, 0, 0.55));
+  outline: none;
+}
+
+.website-root .keys-band-car:nth-child(odd):hover,
+.website-root .keys-band-car:nth-child(odd):focus-visible {
+  transform: translateY(-2px) scale(1.06);
+}
+
+.website-root .keys-band-car:nth-child(even):hover,
+.website-root .keys-band-car:nth-child(even):focus-visible {
+  transform: translateY(-12px) scale(1.06);
+}
+
+.website-root .keys-band-car-label {
+  max-width: 9.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  pointer-events: none;
+}
+
+.website-root .keys-band-car:hover .keys-band-car-label,
+.website-root .keys-band-car:focus-visible .keys-band-car-label {
+  color: var(--oar-gold);
+}
+
+.website-root .keys-band-road {
+  position: relative;
+  z-index: 1;
+  height: 0.35rem;
+  margin: 0 0 1.25rem;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 8%,
+      rgba(255, 255, 255, 0.08) 92%,
+      transparent 100%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--oar-gold) 0 1.1rem,
+      transparent 1.1rem 2.2rem
+    );
+  opacity: 0.85;
+}
+
+.website-compact .keys-band-copy {
+  padding-top: 2rem !important;
+  padding-bottom: 1.25rem !important;
+}
+
+.website-compact .keys-band-track {
+  gap: 1.5rem;
+  padding-bottom: 1.25rem;
+}
+
+.website-compact .keys-band-car img {
+  height: 4.5rem !important;
+}
+
+.website-compact .keys-band-car-label {
+  max-width: 7rem;
+  font-size: 0.58rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .website-root .marquee-track {
+    animation: none !important;
+  }
+
+  .website-root .deal-card-photo-wrap {
+    animation: none !important;
+  }
+
+  .website-root .keys-band-car,
+  .website-root .keys-band-car:hover,
+  .website-root .keys-band-car:focus-visible {
+    transition: none;
+  }
 }
 

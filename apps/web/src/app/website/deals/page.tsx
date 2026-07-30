@@ -8,6 +8,8 @@ import {
 } from '@/components/website-chrome';
 import {
   DealCard,
+  DealHashFocus,
+  KeysTodayBand,
   Marquee,
   RateCalculator,
   Reveal,
@@ -20,6 +22,7 @@ export default function DealsPage() {
     <WebsiteShell>
       <SitePage>
         <SiteHeader />
+        <DealHashFocus />
 
         <section className="hero-section page-hero relative isolate min-h-[70svh] overflow-hidden bg-[var(--oar-navy)]">
           <Image
@@ -64,9 +67,9 @@ export default function DealsPage() {
 
         <Marquee items={DEALS_TICKER} />
 
-        <section id="stock" className="deals-section px-4 py-16 md:px-8 md:py-24">
+        <section id="stock" className="deals-section bg-[var(--oar-mist)] px-4 py-16 md:px-8 md:py-24">
           <div className="mx-auto max-w-6xl">
-            <Reveal>
+            <Reveal from="left">
               <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-blue)]">
                 Current deals
               </p>
@@ -89,25 +92,28 @@ export default function DealsPage() {
           </div>
         </section>
 
+        <KeysTodayBand />
+
         <section
           id="calculator"
-          className="calculator-section relative overflow-hidden bg-[var(--oar-mist)] px-4 py-16 md:px-8 md:py-24"
+          className="calculator-section relative overflow-hidden bg-[var(--oar-navy)] px-4 py-16 text-white md:px-8 md:py-24"
         >
-          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-[1fr_1.05fr] md:items-center">
-            <Reveal>
-              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-blue)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(192,23,37,0.28),transparent_42%)]" />
+          <div className="relative mx-auto grid max-w-6xl gap-10 md:grid-cols-[1fr_1.05fr] md:items-center">
+            <Reveal from="left">
+              <p className="font-marketing text-xs uppercase tracking-[0.28em] text-[var(--oar-gold)]">
                 Interactive estimate
               </p>
-              <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase tracking-tight text-[var(--oar-navy)] md:text-5xl">
+              <h2 className="section-title font-marketing mt-3 text-4xl font-bold uppercase tracking-tight text-white md:text-5xl">
                 Slide the price.
-                <span className="block text-[var(--oar-red)]">See the monthly.</span>
+                <span className="block text-[var(--oar-gold)]">See the monthly.</span>
               </h2>
-              <p className="section-copy mt-4 max-w-md text-[var(--oar-navy)]/70">
+              <p className="section-copy mt-4 max-w-md text-white/70">
                 Toggle 10% or 20% contract initiation payment (CIP) — numbers
                 mirror the live Own A Rental rate table for demos.
               </p>
             </Reveal>
-            <Reveal delay={100}>
+            <Reveal delay={140} from="right">
               <RateCalculator />
             </Reveal>
           </div>
