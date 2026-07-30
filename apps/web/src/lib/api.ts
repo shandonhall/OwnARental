@@ -484,6 +484,51 @@ export const api = {
   syncClientGhl: (id: string) =>
     apiFetch<Client>(`/clients/${id}/sync-ghl`, { method: 'POST' }),
 
+  getEndOfTermBoard: () =>
+    apiFetch<EndOfTermBoard>('/pipeline/end-of-term'),
+  updateEndOfTermStage: (id: string, stage: EndOfTermStage) =>
+    apiFetch<{ id: string; stage: EndOfTermStage }>(
+      `/pipeline/end-of-term/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ stage }),
+      },
+    ),
+
+  getFinesStatus: () =>
+    apiFetch<{
+      provider: string;
+      handshake: string;
+      message: string;
+      adminFeeZar: number;
+      lastSyncAt: string | null;
+      lastError: string | null;
+      lastImported: number;
+      autoSyncEnabled: boolean;
+      syncIntervalMs: number | null;
+    }>('/fines/status'),
+  getFines: (opts?: { status?: FineImportStatus; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.status) params.set('status', opts.status);
+    if (opts?.limit != null) params.set('limit', String(opts.limit));
+    const qs = params.toString();
+    return apiFetch<FineImportRow[]>(`/fines${qs ? `?${qs}` : ''}`);
+  },
+  syncFines: (registration?: string) => {
+    const qs = registration
+      ? `?registration=${encodeURIComponent(registration)}`
+      : '';
+    return apiFetch<{
+      provider: string;
+      scanned: number;
+      fetched: number;
+      imported: number;
+      adminFeeZar: number;
+    }>(`/fines/sync${qs}`, { method: 'POST' });
+  },
+  invoiceFine: (id: string) =>
+    apiFetch<FineImportRow>(`/fines/${id}/invoice`, { method: 'POST' }),
+
   globalSearch: (q: string, limit = 8) =>
     apiFetch<GlobalSearchResponse>(
       `/search?q=${encodeURIComponent(q)}&limit=${limit}`,
@@ -544,6 +589,71 @@ export type AppNotification = {
 export type NotificationsResponse = {
   unreadCount: number;
   items: AppNotification[];
+};
+
+export type EndOfTermStage =
+  | 'FINAL_90'
+  | 'CONTACTED'
+  | 'BALLOON_PENDING'
+  | 'HANDOVER'
+  | 'RETURNED';
+
+export type EndOfTermCard = {
+  id: string;
+  stage: EndOfTermStage;
+  planType: string;
+  status: string;
+  endDate: string;
+  balloonAmount: string | null;
+  balloonPaid: boolean;
+  ghlOpportunityId: string | null;
+  endOfTermNotifiedAt: string | null;
+  termProgress: TermProgress;
+  href: string;
+  client: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+  };
+  vehicle: {
+    id: string;
+    registration: string;
+    make: string;
+    model: string;
+    status: string;
+  };
+};
+
+export type EndOfTermBoard = {
+  generatedAt: string;
+  total: number;
+  columns: Array<{
+    stage: EndOfTermStage;
+    label: string;
+    cards: EndOfTermCard[];
+  }>;
+};
+
+export type FineImportStatus = 'UNMATCHED' | 'MATCHED' | 'INVOICED' | 'VOID';
+
+export type FineImportRow = {
+  id: string;
+  externalId: string;
+  source: string;
+  registration: string;
+  offenceDate: string | null;
+  amount: string;
+  description: string | null;
+  status: FineImportStatus;
+  contractId: string | null;
+  fineLedgerId: string | null;
+  adminFeeLedgerId: string | null;
+  invoicedAt: string | null;
+  createdAt: string;
+  href: string | null;
+  client: { id: string; firstName: string; lastName: string } | null;
+  vehicle: { id: string; registration: string } | null;
 };
 
 export type DashboardAlert = {

@@ -15,6 +15,8 @@ const links = [
   { href: '/map', label: 'Live Map' },
   { href: '/clients', label: 'Clients' },
   { href: '/contracts', label: 'Contracts' },
+  { href: '/pipeline', label: 'End-of-term' },
+  { href: '/fines', label: 'Fines' },
   { href: '/profitability', label: 'Profitability' },
   { href: '/notifications', label: 'Alerts' },
   { href: '/automation', label: 'Automation' },

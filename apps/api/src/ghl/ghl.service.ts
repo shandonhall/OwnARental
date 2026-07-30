@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Client, Contract, Vehicle } from '../generated/prisma/client';
+import { EndOfTermStage } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { MockGhlProvider } from './ghl.mock';
 import { LiveGhlProvider } from './ghl.live';
@@ -81,6 +82,9 @@ export class GhlService {
             ?.trim(),
           MOBILIZED: this.config
             .get<string>('GHL_WEBHOOK_IMMOBILIZE')
+            ?.trim(),
+          FINE_INVOICE: this.config
+            .get<string>('GHL_WEBHOOK_FINE_INVOICE')
             ?.trim(),
         },
         this.config.get<string>('GHL_PIPELINE_ID')?.trim() || null,
@@ -382,6 +386,7 @@ export class GhlService {
         data: {
           ghlOpportunityId: opportunity.opportunityId,
           endOfTermNotifiedAt: new Date(),
+          endOfTermStage: EndOfTermStage.CONTACTED,
         },
       });
 

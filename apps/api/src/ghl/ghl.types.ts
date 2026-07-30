@@ -9,7 +9,8 @@ export type GhlWorkflowEvent =
   | 'END_OF_TERM'
   | 'IMMOBILIZE_RECOMMENDED'
   | 'IMMOBILIZED'
-  | 'MOBILIZED';
+  | 'MOBILIZED'
+  | 'FINE_INVOICE';
 
 export type GhlContactInput = {
   clientId: string;

@@ -198,6 +198,42 @@ GHL_COMMS_INTERVAL_MS=900000
 
 Leave unset to use the mock provider (logs workflow payloads; still writes mock `ghlContactId` / opportunity ids for demos).
 
+## Phase 6 checklist (Pipeline & Fines)
+
+- [x] End-of-term Kanban board (`/pipeline`) with Final 90 / Contacted / Balloon / Handover / Returned
+- [x] Stage updates persist `endOfTermStage` (Returned also marks vehicle `RETURNED`)
+- [x] GHL end-of-term push sets stage to `CONTACTED`
+- [x] Fines provider handshake (live when `FINES_API_URL` + `FINES_API_KEY` set; otherwise mock)
+- [x] Import by registration → match active contract → `FineImport` record
+- [x] Auto-invoice: ledger `FINE`/`TOLL` + `ADMIN_FEE` (default R150) + optional GHL `FINE_INVOICE`
+- [x] Fines UI at `/fines` with sync + invoice actions
+
+## Phase 6 routes
+
+**API**
+
+- `GET /api/pipeline/end-of-term`
+- `PATCH /api/pipeline/end-of-term/:id` body `{ stage }`
+- `GET /api/fines/status`
+- `GET /api/fines?status=&limit=`
+- `POST /api/fines/sync?registration=`
+- `POST /api/fines/:id/invoice`
+
+**Web**
+
+- `/pipeline`
+- `/fines`
+
+**Env (optional live fines)**
+
+```bash
+FINES_API_URL=https://your-fines-gateway
+FINES_API_KEY=...
+FINES_ADMIN_FEE_ZAR=150
+FINES_AUTO_SYNC=true
+FINES_SYNC_INTERVAL_MS=3600000
+```
+
 ## Backups
 
 | Location | What |

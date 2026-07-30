@@ -11,6 +11,8 @@ import { TelematicsModule } from './telematics/telematics.module';
 import { SearchModule } from './search/search.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { GhlModule } from './ghl/ghl.module';
+import { PipelineModule } from './pipeline/pipeline.module';
+import { FinesModule } from './fines/fines.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -35,6 +37,8 @@ import { AppService } from './app.service';
     SearchModule,
     NotificationsModule,
     GhlModule,
+    PipelineModule,
+    FinesModule,
     DashboardModule,
   ],
   controllers: [AppController],
