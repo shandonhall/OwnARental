@@ -26,6 +26,42 @@ function money(value: string | number) {
   })}`;
 }
 
+function ledgerStatusLabel(status: string) {
+  switch (status) {
+    case 'ON_TIME':
+      return 'On time';
+    case 'EARLY':
+      return 'Early';
+    case 'LATE':
+      return 'Late';
+    case 'PENDING':
+      return 'Pending';
+    case 'FAILED':
+      return 'Failed';
+    case 'VOID':
+      return 'Void';
+    default:
+      return status.replaceAll('_', ' ');
+  }
+}
+
+function ledgerStatusClass(status: string) {
+  switch (status) {
+    case 'ON_TIME':
+    case 'EARLY':
+      return 'text-success';
+    case 'LATE':
+    case 'FAILED':
+      return 'text-danger';
+    case 'PENDING':
+      return 'text-warning';
+    case 'VOID':
+      return 'text-brand-grey';
+    default:
+      return 'text-navy';
+  }
+}
+
 export default function ContractDetailPage() {
   const params = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -98,7 +134,7 @@ export default function ContractDetailPage() {
           <p className="mt-2 text-2xl text-navy">
             {money(contract.outstandingBalance)}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-brand-grey">
             Expected {money(contract.expectedTotal)} · Paid{' '}
             {money(contract.totalPaid)}
           </p>
@@ -110,7 +146,7 @@ export default function ContractDetailPage() {
           <p className="mt-2 text-2xl text-navy">
             {money(contract.monthlyRate)}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-brand-grey">
             {contract.planType.replace('_', ' ')} · {contract.status}
           </p>
         </div>
@@ -119,13 +155,13 @@ export default function ContractDetailPage() {
             Term progress
           </p>
           <p className="mt-2 text-2xl text-navy">{progress.percent}%</p>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-brand"
               style={{ width: `${progress.percent}%` }}
             />
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-brand-grey">
             Month {progress.monthsElapsed}/{progress.termMonths} ·{' '}
             {progress.daysRemaining} days left
             {progress.isFinalNinetyDays ? ' · Final 90 days' : ''}
@@ -156,21 +192,25 @@ export default function ContractDetailPage() {
               <tbody>
                 {contract.ledger.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-4 text-slate-500">
+                    <td colSpan={4} className="py-4 text-brand-grey">
                       No ledger entries yet.
                     </td>
                   </tr>
                 )}
                 {contract.ledger.map((entry) => (
                   <tr key={entry.id} className="border-t border-slate-100">
-                    <td className="py-2 pr-3 text-slate-200">
+                    <td className="py-2.5 pr-3 text-navy">
                       {entry.type.replaceAll('_', ' ')}
                     </td>
-                    <td className="py-2 pr-3 text-slate-300">{entry.status}</td>
-                    <td className="py-2 pr-3 text-slate-200">
+                    <td
+                      className={`py-2.5 pr-3 font-medium ${ledgerStatusClass(entry.status)}`}
+                    >
+                      {ledgerStatusLabel(entry.status)}
+                    </td>
+                    <td className="py-2.5 pr-3 tabular-nums text-navy">
                       {money(entry.amount)}
                     </td>
-                    <td className="py-2 text-brand-grey">
+                    <td className="py-2.5 text-brand-grey">
                       {entry.paidAt
                         ? new Date(entry.paidAt).toLocaleDateString()
                         : '—'}
