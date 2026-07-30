@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
-import { LedgerEntryStatus } from '../generated/prisma/enums';
+import { LedgerEntryStatus, LedgerEntryType } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContractsService } from '../contracts/contracts.service';
 import {
@@ -8,12 +8,14 @@ import {
   UpdateLedgerEntryDto,
 } from './ledger.schemas';
 import type { User } from '../generated/prisma/client';
+import { GhlService } from '../ghl/ghl.service';
 
 @Injectable()
 export class LedgerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly contractsService: ContractsService,
+    private readonly ghl: GhlService,
   ) {}
 
   private async ensureContract(contractId: string) {
@@ -42,7 +44,7 @@ export class LedgerService {
         ? new Date()
         : null);
 
-    await this.prisma.ledgerEntry.create({
+    const entry = await this.prisma.ledgerEntry.create({
       data: {
         contractId,
         type: data.type,
@@ -57,6 +59,7 @@ export class LedgerService {
       },
     });
 
+    await this.maybeNotifyPayment(entry.id);
     return this.contractsService.findOne(contractId);
   }
 
@@ -91,6 +94,10 @@ export class LedgerService {
       },
     });
 
+    if (data.status === LedgerEntryStatus.LATE) {
+      await this.maybeNotifyPayment(entryId);
+    }
+
     return this.contractsService.findOne(contractId);
   }
 
@@ -109,5 +116,53 @@ export class LedgerService {
     });
 
     return this.contractsService.findOne(contractId);
+  }
+
+  private async maybeNotifyPayment(entryId: string) {
+    const entry = await this.prisma.ledgerEntry.findUnique({
+      where: { id: entryId },
+      include: {
+        contract: { include: { client: true, vehicle: true } },
+      },
+    });
+    if (!entry || entry.type !== LedgerEntryType.RENTAL_PAYMENT) return;
+
+    const metadata =
+      entry.metadata &&
+      typeof entry.metadata === 'object' &&
+      !Array.isArray(entry.metadata)
+        ? (entry.metadata as Record<string, unknown>)
+        : {};
+    if (metadata.ghlNotifiedAt || metadata.ghlMessageId) return;
+
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    let event: 'LATE_PAYMENT' | 'MISSED_PAYMENT' | null = null;
+    if (entry.status === LedgerEntryStatus.LATE) {
+      event = 'LATE_PAYMENT';
+    } else if (
+      entry.status === LedgerEntryStatus.PENDING &&
+      entry.dueDate &&
+      entry.dueDate < startOfToday
+    ) {
+      event = 'MISSED_PAYMENT';
+    }
+
+    if (!event) return;
+
+    await this.ghl.notifyPaymentIssue({
+      event,
+      client: entry.contract.client,
+      contract: entry.contract,
+      vehicle: entry.contract.vehicle,
+      amount: Number(entry.amount),
+      detail:
+        event === 'LATE_PAYMENT'
+          ? 'Late rental payment notice'
+          : 'Missed rental payment reminder',
+      ledgerEntryId: entry.id,
+    });
   }
 }

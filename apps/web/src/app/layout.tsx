@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
-import { Varela } from 'next/font/google';
+import { Barlow_Condensed, DM_Sans } from 'next/font/google';
 import { Providers } from '@/components/providers';
 import './globals.css';
 
-const body = Varela({
+const body = DM_Sans({
   variable: '--font-body',
   subsets: ['latin'],
-  weight: '400',
+  weight: ['400', '500', '600', '700'],
 });
 
-const display = Varela({
+const display = Barlow_Condensed({
   variable: '--font-display',
   subsets: ['latin'],
-  weight: '400',
+  weight: ['500', '600', '700'],
 });
 
 export const metadata: Metadata = {

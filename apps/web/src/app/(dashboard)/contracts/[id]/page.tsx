@@ -130,6 +130,11 @@ export default function ContractDetailPage() {
             {progress.daysRemaining} days left
             {progress.isFinalNinetyDays ? ' · Final 90 days' : ''}
           </p>
+          {contract.ghlOpportunityId ? (
+            <p className="mt-2 font-mono text-[11px] text-brand-grey">
+              GHL opportunity · {contract.ghlOpportunityId}
+            </p>
+          ) : null}
         </div>
       </div>
 

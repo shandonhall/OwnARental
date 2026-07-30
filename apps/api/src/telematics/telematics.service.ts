@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,7 +10,10 @@ import { Prisma } from '../generated/prisma/client';
 import { TelematicsEventType } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '../generated/prisma/client';
-import type { CarTrackProvider } from './cartrack.types';
+import type {
+  CarTrackProvider,
+  DriverScoreBreakdown,
+} from './cartrack.types';
 import { MockCarTrackProvider } from './cartrack.mock';
 import { LiveCarTrackProvider } from './cartrack.live';
 import {
@@ -17,14 +21,36 @@ import {
   mileageAgainstLimit,
   predictNextService,
 } from './telematics.utils';
+import { GhlService } from '../ghl/ghl.service';
+
+export type FleetSyncError = {
+  vehicleId: string;
+  registration?: string;
+  message: string;
+};
+
+export type FleetSyncResult = {
+  provider: 'mock' | 'live';
+  synced: number;
+  failed: number;
+  errors: FleetSyncError[];
+  triggeredBy: 'manual' | 'schedule' | 'queue';
+  completedAt: string;
+};
 
 @Injectable()
 export class TelematicsService {
+  private readonly logger = new Logger(TelematicsService.name);
   private readonly provider: CarTrackProvider;
+  private lastFleetSyncAt: Date | null = null;
+  private lastFleetSyncError: string | null = null;
+  private lastFleetSyncResult: FleetSyncResult | null = null;
+  private syncInFlight = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly ghl: GhlService,
   ) {
     const baseUrl = this.config.get<string>('CARTRACK_API_URL');
     const apiKey = this.config.get<string>('CARTRACK_API_KEY');
@@ -34,14 +60,25 @@ export class TelematicsService {
         : new MockCarTrackProvider();
   }
 
-  getStatus() {
+  getStatus(schedulerMeta?: {
+    autoSyncEnabled: boolean;
+    intervalMs: number;
+    queueEnabled: boolean;
+  }) {
     return {
       provider: this.provider.mode,
-      handshake: 'ok',
+      handshake: 'ok' as const,
       message:
         this.provider.mode === 'live'
           ? 'Connected to CarTrack API'
           : 'Using mock CarTrack provider (set CARTRACK_API_URL + CARTRACK_API_KEY for live)',
+      lastFleetSyncAt: this.lastFleetSyncAt?.toISOString() ?? null,
+      lastFleetSyncError: this.lastFleetSyncError,
+      lastFleetSync: this.lastFleetSyncResult,
+      syncInFlight: this.syncInFlight,
+      autoSyncEnabled: schedulerMeta?.autoSyncEnabled ?? false,
+      syncIntervalMs: schedulerMeta?.intervalMs ?? null,
+      queueEnabled: schedulerMeta?.queueEnabled ?? false,
     };
   }
 
@@ -64,6 +101,7 @@ export class TelematicsService {
       orderBy: { registration: 'asc' },
     });
 
+    const now = Date.now();
     return vehicles.map((vehicle) => {
       const contract = vehicle.contracts[0];
       const mileage = mileageAgainstLimit({
@@ -72,6 +110,14 @@ export class TelematicsService {
         contractMonthlyLimit: contract?.monthlyKmLimit,
         averageDailyKm: vehicle.averageDailyKm,
       });
+
+      const serviceDueDate = vehicle.nextServiceDueDate;
+      const daysUntilService =
+        serviceDueDate != null
+          ? Math.ceil(
+              (serviceDueDate.getTime() - now) / (1000 * 60 * 60 * 24),
+            )
+          : null;
 
       return {
         id: vehicle.id,
@@ -88,6 +134,9 @@ export class TelematicsService {
         isImmobilized: vehicle.isImmobilized,
         nextServiceDueKm: vehicle.nextServiceDueKm,
         nextServiceDueDate: vehicle.nextServiceDueDate,
+        daysUntilService,
+        serviceDueSoon:
+          daysUntilService != null && daysUntilService <= 14,
         averageDailyKm: vehicle.averageDailyKm
           ? Number(vehicle.averageDailyKm)
           : null,
@@ -111,6 +160,7 @@ export class TelematicsService {
       include: {
         contracts: {
           where: { status: { in: ['ACTIVE', 'ARREARS'] } },
+          include: { client: true },
           take: 1,
           orderBy: { createdAt: 'desc' },
         },
@@ -121,6 +171,7 @@ export class TelematicsService {
       throw new NotFoundException(`Vehicle ${vehicleId} not found`);
     }
 
+    const previousScore = vehicle.driverScore;
     const deviceId =
       vehicle.carTrackDeviceId ?? `MOCK-${vehicle.registration}`;
 
@@ -165,6 +216,56 @@ export class TelematicsService {
       await tx.telematicsEvent.create({
         data: {
           vehicleId,
+          type: TelematicsEventType.LOCATION,
+          lat: new Prisma.Decimal(snapshot.lat),
+          lng: new Prisma.Decimal(snapshot.lng),
+          message: 'Location ping',
+          recordedAt: snapshot.recordedAt,
+        },
+      });
+
+      await tx.telematicsEvent.create({
+        data: {
+          vehicleId,
+          type: TelematicsEventType.MILEAGE,
+          odometerKm: snapshot.odometerKm,
+          message: `Odometer ${snapshot.odometerKm.toLocaleString()} km`,
+          recordedAt: snapshot.recordedAt,
+        },
+      });
+
+      await tx.telematicsEvent.create({
+        data: {
+          vehicleId,
+          type: TelematicsEventType.DRIVER_SCORE,
+          driverScore: snapshot.driverScore,
+          message: `Driver score ${snapshot.driverScore}`,
+          payload: {
+            breakdown: snapshot.scoreBreakdown,
+          },
+          recordedAt: snapshot.recordedAt,
+        },
+      });
+
+      for (const breach of snapshot.ruleBreaches) {
+        await tx.telematicsEvent.create({
+          data: {
+            vehicleId,
+            type: TelematicsEventType.RULE_BREACH,
+            driverScore: snapshot.driverScore,
+            message: breach.message,
+            payload: {
+              code: breach.code,
+              severity: breach.severity,
+            },
+            recordedAt: breach.occurredAt,
+          },
+        });
+      }
+
+      await tx.telematicsEvent.create({
+        data: {
+          vehicleId,
           type: TelematicsEventType.SYNC,
           odometerKm: snapshot.odometerKm,
           lat: new Prisma.Decimal(snapshot.lat),
@@ -174,6 +275,8 @@ export class TelematicsService {
           payload: {
             provider: this.provider.mode,
             prediction,
+            breachCount: snapshot.ruleBreaches.length,
+            breakdown: snapshot.scoreBreakdown,
           },
           recordedAt: snapshot.recordedAt,
         },
@@ -182,7 +285,27 @@ export class TelematicsService {
       return next;
     });
 
-    const contract = vehicle.contracts[0];
+    const contract = vehicle.contracts[0] ?? null;
+    const client = contract?.client ?? null;
+
+    for (const breach of snapshot.ruleBreaches) {
+      await this.ghl.notifyRuleBreach({
+        vehicle: updated,
+        client,
+        contract,
+        code: breach.code,
+        severity: breach.severity,
+        message: breach.message,
+      });
+    }
+
+    await this.ghl.notifyLowDriverScore({
+      vehicle: updated,
+      client,
+      previousScore,
+      score: snapshot.driverScore,
+    });
+
     return {
       vehicle: updated,
       prediction,
@@ -192,27 +315,88 @@ export class TelematicsService {
         contractMonthlyLimit: contract?.monthlyKmLimit,
         averageDailyKm: updated.averageDailyKm,
       }),
+      scoreBreakdown: snapshot.scoreBreakdown,
+      ruleBreaches: snapshot.ruleBreaches.map((breach) => ({
+        code: breach.code,
+        severity: breach.severity,
+        message: breach.message,
+        occurredAt: breach.occurredAt.toISOString(),
+      })),
       provider: this.provider.mode,
     };
   }
 
-  async syncFleet() {
-    const vehicles = await this.prisma.vehicle.findMany({
-      where: {
-        status: { in: ['ACTIVE', 'ARREARS', 'AVAILABLE'] },
-      },
-      select: { id: true },
-    });
-
-    const results = [];
-    for (const vehicle of vehicles) {
-      results.push(await this.syncVehicle(vehicle.id));
+  async syncFleet(
+    triggeredBy: FleetSyncResult['triggeredBy'] = 'manual',
+  ): Promise<FleetSyncResult> {
+    if (this.syncInFlight) {
+      return (
+        this.lastFleetSyncResult ?? {
+          provider: this.provider.mode,
+          synced: 0,
+          failed: 0,
+          errors: [],
+          triggeredBy,
+          completedAt: new Date().toISOString(),
+        }
+      );
     }
-    return {
-      provider: this.provider.mode,
-      synced: results.length,
-      results,
-    };
+
+    this.syncInFlight = true;
+    const errors: FleetSyncError[] = [];
+    let synced = 0;
+
+    try {
+      const vehicles = await this.prisma.vehicle.findMany({
+        where: {
+          status: { in: ['ACTIVE', 'ARREARS', 'AVAILABLE'] },
+        },
+        select: { id: true, registration: true },
+      });
+
+      for (const vehicle of vehicles) {
+        try {
+          await this.syncVehicle(vehicle.id);
+          synced += 1;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : 'Unknown sync error';
+          this.logger.warn(
+            `Telematics sync failed for ${vehicle.registration}: ${message}`,
+          );
+          errors.push({
+            vehicleId: vehicle.id,
+            registration: vehicle.registration,
+            message,
+          });
+        }
+      }
+
+      const result: FleetSyncResult = {
+        provider: this.provider.mode,
+        synced,
+        failed: errors.length,
+        errors,
+        triggeredBy,
+        completedAt: new Date().toISOString(),
+      };
+
+      this.lastFleetSyncAt = new Date();
+      this.lastFleetSyncError =
+        errors.length > 0
+          ? `${errors.length} vehicle(s) failed to sync`
+          : null;
+      this.lastFleetSyncResult = result;
+      return result;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Fleet sync failed';
+      this.lastFleetSyncError = message;
+      this.logger.error(message);
+      throw error;
+    } finally {
+      this.syncInFlight = false;
+    }
   }
 
   async getVehicleTelematics(vehicleId: string) {
@@ -226,7 +410,7 @@ export class TelematicsService {
         },
         telematicsEvents: {
           orderBy: { recordedAt: 'desc' },
-          take: 25,
+          take: 40,
         },
       },
     });
@@ -245,6 +429,34 @@ export class TelematicsService {
           })
         : null;
 
+    const scoreEvent = vehicle.telematicsEvents.find(
+      (event) => event.type === TelematicsEventType.DRIVER_SCORE,
+    );
+    const scoreBreakdown = extractBreakdown(scoreEvent?.payload);
+
+    const recentBreaches = vehicle.telematicsEvents
+      .filter((event) => event.type === TelematicsEventType.RULE_BREACH)
+      .slice(0, 8)
+      .map((event) => ({
+        id: event.id,
+        code:
+          typeof event.payload === 'object' &&
+          event.payload &&
+          'code' in event.payload
+            ? String((event.payload as { code?: unknown }).code ?? 'BREACH')
+            : 'BREACH',
+        severity:
+          typeof event.payload === 'object' &&
+          event.payload &&
+          'severity' in event.payload
+            ? String(
+                (event.payload as { severity?: unknown }).severity ?? 'medium',
+              )
+            : 'medium',
+        message: event.message ?? 'Rule breach',
+        occurredAt: event.recordedAt.toISOString(),
+      }));
+
     return {
       vehicle,
       prediction,
@@ -254,6 +466,8 @@ export class TelematicsService {
         contractMonthlyLimit: contract?.monthlyKmLimit,
         averageDailyKm: vehicle.averageDailyKm,
       }),
+      scoreBreakdown,
+      recentBreaches,
       provider: this.provider.mode,
     };
   }
@@ -271,6 +485,14 @@ export class TelematicsService {
 
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id: vehicleId },
+      include: {
+        contracts: {
+          where: { status: { in: ['ACTIVE', 'ARREARS'] } },
+          include: { client: true },
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
     if (!vehicle) {
       throw new NotFoundException(`Vehicle ${vehicleId} not found`);
@@ -294,7 +516,9 @@ export class TelematicsService {
         where: { id: vehicleId },
         data: {
           isImmobilized: immobilize,
-          lastImmobilizedAt: immobilize ? new Date() : vehicle.lastImmobilizedAt,
+          lastImmobilizedAt: immobilize
+            ? new Date()
+            : vehicle.lastImmobilizedAt,
         },
       });
 
@@ -316,6 +540,40 @@ export class TelematicsService {
       return next;
     });
 
+    await this.ghl.notifyImmobilizeChange({
+      immobilize,
+      vehicle: updated,
+      client: vehicle.contracts[0]?.client ?? null,
+      actorEmail: actor.email,
+    });
+
     return updated;
   }
+}
+
+function extractBreakdown(
+  payload: Prisma.JsonValue | null | undefined,
+): DriverScoreBreakdown | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const source =
+    record.breakdown &&
+    typeof record.breakdown === 'object' &&
+    !Array.isArray(record.breakdown)
+      ? (record.breakdown as Record<string, unknown>)
+      : record;
+
+  const overall = Number(source.overall);
+  if (!Number.isFinite(overall)) return null;
+
+  return {
+    overall: Math.round(overall),
+    speeding: Math.round(Number(source.speeding ?? overall)),
+    harshBraking: Math.round(Number(source.harshBraking ?? overall)),
+    harshAcceleration: Math.round(Number(source.harshAcceleration ?? overall)),
+    idling: Math.round(Number(source.idling ?? overall)),
+  };
 }

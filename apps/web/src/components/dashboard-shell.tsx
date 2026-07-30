@@ -6,6 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api, roleLabel } from '@/lib/api';
 import { createClient } from '@/lib/supabase/client';
+import { GlobalSearch } from '@/components/global-search';
+import { NotificationCenter } from '@/components/notification-center';
 
 const links = [
   { href: '/', label: 'Today' },
@@ -14,6 +16,8 @@ const links = [
   { href: '/clients', label: 'Clients' },
   { href: '/contracts', label: 'Contracts' },
   { href: '/profitability', label: 'Profitability' },
+  { href: '/notifications', label: 'Alerts' },
+  { href: '/automation', label: 'Automation' },
   { href: '/website', label: 'Website' },
 ];
 
@@ -77,7 +81,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   className={`rounded-md px-3 py-2 text-sm transition ${
                     active
                       ? 'bg-brand/10 font-medium text-brand'
-                      : 'text-navy/80 hover:bg-slate-200/60 hover:text-navy'
+                      : 'text-navy/80 hover:bg-mist hover:text-navy'
                   }`}
                 >
                   {link.label}
@@ -96,7 +100,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={signOut}
-              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm text-navy hover:bg-slate-50"
+              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm text-navy hover:bg-mist"
             >
               Sign out
             </button>
@@ -104,11 +108,31 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4 md:hidden">
-            <Link href="/">
-              <BrandMark className="h-8 w-auto" />
-            </Link>
-            <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
+          <header className="mb-6 flex flex-col gap-3 border-b border-slate-200 pb-4">
+            <div className="flex items-center justify-between gap-3 md:hidden">
+              <Link href="/">
+                <BrandMark className="h-8 w-auto" />
+              </Link>
+              <div className="flex items-center gap-2">
+                <NotificationCenter />
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="text-sm text-brand-grey"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <GlobalSearch className="min-w-0 flex-1" />
+              <div className="hidden shrink-0 md:block">
+                <NotificationCenter />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-sm md:hidden">
               {links.map((link) => (
                 <Link
                   key={link.href}
@@ -122,9 +146,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   {link.label}
                 </Link>
               ))}
-              <button type="button" onClick={signOut} className="text-brand-grey">
-                Sign out
-              </button>
             </div>
           </header>
           <main className="flex-1">{children}</main>

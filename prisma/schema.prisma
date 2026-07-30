@@ -73,6 +73,23 @@ enum LedgerEntryStatus {
   VOID
 }
 
+enum NotificationKind {
+  MISSED_PAYMENT
+  ARREARS
+  LATE_PAYMENT
+  PENDING_FINE
+  SERVICE_DUE
+  RULE_BREACH
+  END_OF_TERM
+  SYSTEM
+}
+
+enum NotificationSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
 // ---------------------------------------------------------------------------
 // Users (RBAC — dashboard staff; immobilize requires SUPER_ADMIN)
 // ---------------------------------------------------------------------------
@@ -88,7 +105,8 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  ledgerEntries LedgerEntry[]
+  ledgerEntries     LedgerEntry[]
+  notificationReads NotificationRead[]
 
   @@index([role])
   @@index([isActive])
@@ -308,4 +326,44 @@ model LedgerEntry {
   @@index([contractId, status])
   @@index([contractId, paidAt])
   @@map("ledger_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (staff alert feed — deduped operational flags)
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dedupeKey String               @unique @map("dedupe_key")
+  kind      NotificationKind
+  severity  NotificationSeverity @default(MEDIUM)
+  title     String
+  detail    String
+  href      String?
+  amount    Decimal?             @db.Decimal(12, 2)
+  entityType String?             @map("entity_type")
+  entityId   String?             @map("entity_id") @db.Uuid
+  active    Boolean              @default(true)
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+
+  reads NotificationRead[]
+
+  @@index([active, createdAt])
+  @@index([kind])
+  @@map("notifications")
+}
+
+model NotificationRead {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  notificationId String   @map("notification_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  readAt         DateTime @default(now()) @map("read_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId, readAt])
+  @@map("notification_reads")
 }

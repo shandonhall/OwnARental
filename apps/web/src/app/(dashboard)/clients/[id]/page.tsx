@@ -47,12 +47,28 @@ export default function ClientDetailPage() {
             {client.ficaStatus}
           </p>
         </div>
-        <Link
-          href={`/clients/${client.id}/edit`}
-          className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
-        >
-          Edit profile
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await api.syncClientGhl(client.id);
+                await query.refetch();
+              } catch {
+                // query will surface state on next load
+              }
+            }}
+            className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-navy transition hover:bg-mist"
+          >
+            Sync to GHL
+          </button>
+          <Link
+            href={`/clients/${client.id}/edit`}
+            className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
+          >
+            Edit profile
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -76,6 +92,12 @@ export default function ClientDetailPage() {
             <div className="flex justify-between gap-4">
               <dt className="text-brand-grey">Email</dt>
               <dd>{client.email ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-brand-grey">GHL contact</dt>
+              <dd className="font-mono text-xs">
+                {client.ghlContactId ?? 'Not synced'}
+              </dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-brand-grey">Address</dt>
@@ -124,9 +146,7 @@ export default function ClientDetailPage() {
           Contracts
         </h2>
         {client.contracts.length === 0 ? (
-          <p className="text-sm text-brand-grey">
-            No contracts linked yet — Phase 2 will connect rent-to-own terms.
-          </p>
+          <p className="text-sm text-brand-grey">No contracts linked yet.</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {client.contracts.map((contract) => (

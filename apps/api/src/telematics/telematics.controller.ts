@@ -7,6 +7,7 @@ import {
   Body,
 } from '@nestjs/common';
 import { TelematicsService } from './telematics.service';
+import { TelematicsSchedulerService } from './telematics.scheduler';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '../generated/prisma/enums';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -21,11 +22,14 @@ const immobilizeSchema = z.object({
 
 @Controller('telematics')
 export class TelematicsController {
-  constructor(private readonly telematicsService: TelematicsService) {}
+  constructor(
+    private readonly telematicsService: TelematicsService,
+    private readonly scheduler: TelematicsSchedulerService,
+  ) {}
 
   @Get('status')
   getStatus() {
-    return this.telematicsService.getStatus();
+    return this.telematicsService.getStatus(this.scheduler.getMeta());
   }
 
   @Get('map')
@@ -36,7 +40,7 @@ export class TelematicsController {
   @Post('sync')
   @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.FLEET_MANAGER)
   syncFleet() {
-    return this.telematicsService.syncFleet();
+    return this.telematicsService.syncFleet('manual');
   }
 
   @Post('vehicles/:id/sync')

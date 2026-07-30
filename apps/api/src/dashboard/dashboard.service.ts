@@ -4,13 +4,16 @@ import {
   ContractStatus,
   LedgerEntryStatus,
   LedgerEntryType,
+  TelematicsEventType,
   VehicleStatus,
 } from '../generated/prisma/enums';
 
-const ATTENTION_LIMIT = 6;
+const ATTENTION_LIMIT = 8;
 const WINS_LIMIT = 6;
 const EARLY_LOOKBACK_DAYS = 45;
 const COMPLETED_LOOKBACK_DAYS = 90;
+const SERVICE_DUE_DAYS = 14;
+const BREACH_LOOKBACK_DAYS = 7;
 
 const FLEET_STATUS_ORDER: VehicleStatus[] = [
   VehicleStatus.ACTIVE,
@@ -23,14 +26,20 @@ const FLEET_STATUS_ORDER: VehicleStatus[] = [
 
 export type DashboardAlert = {
   id: string;
-  kind: 'MISSED_PAYMENT' | 'ARREARS' | 'LATE_PAYMENT' | 'PENDING_FINE';
+  kind:
+    | 'MISSED_PAYMENT'
+    | 'ARREARS'
+    | 'LATE_PAYMENT'
+    | 'PENDING_FINE'
+    | 'SERVICE_DUE'
+    | 'RULE_BREACH';
   severity: 'high' | 'medium';
   title: string;
   detail: string;
   amount: string | null;
   date: string | null;
-  client: { id: string; firstName: string; lastName: string };
-  contractId: string;
+  client: { id: string; firstName: string; lastName: string } | null;
+  contractId: string | null;
   vehicle: {
     id: string;
     registration: string;
@@ -71,6 +80,9 @@ export class DashboardService {
     const completedSince = new Date(now);
     completedSince.setDate(completedSince.getDate() - COMPLETED_LOOKBACK_DAYS);
 
+    const breachSince = new Date(now);
+    breachSince.setDate(breachSince.getDate() - BREACH_LOOKBACK_DAYS);
+
     const [
       overduePayments,
       latePayments,
@@ -79,6 +91,7 @@ export class DashboardService {
       earlyPayments,
       completedContracts,
       vehicles,
+      recentBreaches,
     ] = await Promise.all([
       this.prisma.ledgerEntry.findMany({
         where: {
@@ -183,6 +196,30 @@ export class DashboardService {
           },
         },
         orderBy: [{ status: 'asc' }, { registration: 'asc' }],
+      }),
+      this.prisma.telematicsEvent.findMany({
+        where: {
+          type: TelematicsEventType.RULE_BREACH,
+          recordedAt: { gte: breachSince },
+        },
+        include: {
+          vehicle: {
+            include: {
+              contracts: {
+                where: {
+                  status: {
+                    in: [ContractStatus.ACTIVE, ContractStatus.ARREARS],
+                  },
+                },
+                include: { client: true },
+                take: 1,
+                orderBy: { createdAt: 'desc' },
+              },
+            },
+          },
+        },
+        orderBy: { recordedAt: 'desc' },
+        take: 10,
       }),
     ]);
 
@@ -314,6 +351,78 @@ export class DashboardService {
       });
     }
 
+    for (const event of recentBreaches) {
+      const contract = event.vehicle.contracts[0] ?? null;
+      const severityRaw =
+        event.payload &&
+        typeof event.payload === 'object' &&
+        !Array.isArray(event.payload) &&
+        'severity' in event.payload
+          ? String((event.payload as { severity?: unknown }).severity)
+          : 'medium';
+      pushAttention({
+        id: `breach-${event.id}`,
+        kind: 'RULE_BREACH',
+        severity: severityRaw === 'high' ? 'high' : 'medium',
+        title: event.vehicle.registration,
+        detail: event.message ?? 'Telematics rule breach',
+        amount: null,
+        date: event.recordedAt.toISOString(),
+        client: contract?.client
+          ? {
+              id: contract.client.id,
+              firstName: contract.client.firstName,
+              lastName: contract.client.lastName,
+            }
+          : null,
+        contractId: contract?.id ?? null,
+        vehicle: {
+          id: event.vehicle.id,
+          registration: event.vehicle.registration,
+          make: event.vehicle.make,
+          model: event.vehicle.model,
+        },
+      });
+    }
+
+    for (const vehicle of vehicles) {
+      if (!vehicle.nextServiceDueDate) continue;
+      const daysUntil = Math.ceil(
+        (vehicle.nextServiceDueDate.getTime() - now.getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+      if (daysUntil > SERVICE_DUE_DAYS) continue;
+      const contract = vehicle.contracts[0] ?? null;
+      pushAttention({
+        id: `service-${vehicle.id}`,
+        kind: 'SERVICE_DUE',
+        severity: daysUntil <= 3 ? 'high' : 'medium',
+        title: vehicle.registration,
+        detail:
+          daysUntil < 0
+            ? `Service overdue by ${Math.abs(daysUntil)} day${Math.abs(daysUntil) === 1 ? '' : 's'}`
+            : daysUntil === 0
+              ? 'Service due today'
+              : `Service due in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`,
+        amount: null,
+        date: vehicle.nextServiceDueDate.toISOString(),
+        client: contract?.client
+          ? {
+              id: contract.client.id,
+              firstName: contract.client.firstName,
+              lastName: contract.client.lastName,
+            }
+          : null,
+        contractId: contract?.id ?? null,
+        vehicle: {
+          id: vehicle.id,
+          registration: vehicle.registration,
+          make: vehicle.make,
+          model: vehicle.model,
+        },
+      });
+    }
+
     const wins: DashboardWin[] = [];
 
     for (const entry of earlyPayments) {
@@ -427,6 +536,24 @@ export class DashboardService {
       };
     }).filter((row) => row.count > 0);
 
+    const paymentAlerts = attention.filter((item) =>
+      ['MISSED_PAYMENT', 'ARREARS', 'LATE_PAYMENT'].includes(item.kind),
+    ).length;
+    const serviceDueCount = attention.filter(
+      (item) => item.kind === 'SERVICE_DUE',
+    ).length;
+
+    const termHorizon = new Date(now);
+    termHorizon.setDate(termHorizon.getDate() + 90);
+    const contractsNearingCompletion = await this.prisma.contract.count({
+      where: {
+        status: { in: [ContractStatus.ACTIVE, ContractStatus.ARREARS] },
+        endDate: { gte: startOfToday, lte: termHorizon },
+      },
+    });
+
+    const activeFleet = active + arrears;
+
     return {
       generatedAt: now.toISOString(),
       summary: {
@@ -436,6 +563,17 @@ export class DashboardService {
         onContract,
         available,
         arrears,
+        utilizationPercent,
+        activeFleet,
+        paymentAlerts,
+        serviceDue: serviceDueCount,
+        contractsNearingCompletion,
+      },
+      kpi: {
+        activeFleet,
+        paymentAlerts,
+        serviceDue: serviceDueCount,
+        contractsNearingCompletion,
         utilizationPercent,
       },
       fleet: {

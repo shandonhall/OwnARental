@@ -92,6 +92,7 @@ export type Client = {
   handoverPhotosUrls: string[];
   notes: string | null;
   isActive: boolean;
+  ghlContactId?: string | null;
   contracts: Array<{
     id: string;
     planType: string;
@@ -221,6 +222,8 @@ export type Contract = {
   outstandingBalance: string;
   expectedTotal: string;
   notes: string | null;
+  ghlOpportunityId?: string | null;
+  endOfTermNotifiedAt?: string | null;
   termProgress: TermProgress;
   client: {
     id: string;
@@ -404,12 +407,43 @@ export const api = {
     }),
 
   getTelematicsStatus: () =>
-    apiFetch<{ provider: string; handshake: string; message: string }>(
-      '/telematics/status',
-    ),
+    apiFetch<{
+      provider: string;
+      handshake: string;
+      message: string;
+      lastFleetSyncAt: string | null;
+      lastFleetSyncError: string | null;
+      lastFleetSync: {
+        provider: string;
+        synced: number;
+        failed: number;
+        errors: Array<{
+          vehicleId: string;
+          registration?: string;
+          message: string;
+        }>;
+        triggeredBy: string;
+        completedAt: string;
+      } | null;
+      syncInFlight: boolean;
+      autoSyncEnabled: boolean;
+      syncIntervalMs: number | null;
+      queueEnabled: boolean;
+    }>('/telematics/status'),
   getMapAssets: () => apiFetch<MapAsset[]>('/telematics/map'),
   syncFleet: () =>
-    apiFetch<{ provider: string; synced: number }>('/telematics/sync', {
+    apiFetch<{
+      provider: string;
+      synced: number;
+      failed: number;
+      errors: Array<{
+        vehicleId: string;
+        registration?: string;
+        message: string;
+      }>;
+      triggeredBy: string;
+      completedAt: string;
+    }>('/telematics/sync', {
       method: 'POST',
     }),
   syncVehicle: (id: string) =>
@@ -429,18 +463,105 @@ export const api = {
 
   getDashboardOverview: () =>
     apiFetch<DashboardOverview>('/dashboard/overview'),
+
+  getGhlStatus: () =>
+    apiFetch<{
+      provider: string;
+      handshake: string;
+      message: string;
+      lastError: string | null;
+      lastEvent: string | null;
+      lastEventAt: string | null;
+      webhookConfigured: boolean;
+      autoEnabled: boolean;
+      intervalMs: number;
+    }>('/ghl/status'),
+  runGhlComms: () =>
+    apiFetch<{ ok: boolean; status: { provider: string; lastError: string | null } }>(
+      '/ghl/comms/run',
+      { method: 'POST' },
+    ),
+  syncClientGhl: (id: string) =>
+    apiFetch<Client>(`/clients/${id}/sync-ghl`, { method: 'POST' }),
+
+  globalSearch: (q: string, limit = 8) =>
+    apiFetch<GlobalSearchResponse>(
+      `/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+    ),
+
+  getNotifications: (opts?: { includeRead?: boolean; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.includeRead != null) {
+      params.set('includeRead', String(opts.includeRead));
+    }
+    if (opts?.limit != null) params.set('limit', String(opts.limit));
+    const qs = params.toString();
+    return apiFetch<NotificationsResponse>(
+      `/notifications${qs ? `?${qs}` : ''}`,
+    );
+  },
+  markNotificationRead: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/notifications/${id}/read`, {
+      method: 'PATCH',
+    }),
+  markAllNotificationsRead: () =>
+    apiFetch<{ ok: boolean; marked: number }>('/notifications/read-all', {
+      method: 'POST',
+    }),
+};
+
+export type GlobalSearchResult = {
+  type: 'client' | 'vehicle' | 'contract';
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
+};
+
+export type GlobalSearchResponse = {
+  q: string;
+  clients: GlobalSearchResult[];
+  vehicles: GlobalSearchResult[];
+  contracts: GlobalSearchResult[];
+};
+
+export type AppNotification = {
+  id: string;
+  kind: string;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  title: string;
+  detail: string;
+  href: string | null;
+  amount: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  readAt: string | null;
+  isRead: boolean;
+};
+
+export type NotificationsResponse = {
+  unreadCount: number;
+  items: AppNotification[];
 };
 
 export type DashboardAlert = {
   id: string;
-  kind: 'MISSED_PAYMENT' | 'ARREARS' | 'LATE_PAYMENT' | 'PENDING_FINE';
+  kind:
+    | 'MISSED_PAYMENT'
+    | 'ARREARS'
+    | 'LATE_PAYMENT'
+    | 'PENDING_FINE'
+    | 'SERVICE_DUE'
+    | 'RULE_BREACH';
   severity: 'high' | 'medium';
   title: string;
   detail: string;
   amount: string | null;
   date: string | null;
-  client: { id: string; firstName: string; lastName: string };
-  contractId: string;
+  client: { id: string; firstName: string; lastName: string } | null;
+  contractId: string | null;
   vehicle: {
     id: string;
     registration: string;
@@ -475,6 +596,17 @@ export type DashboardOverview = {
     onContract: number;
     available: number;
     arrears: number;
+    utilizationPercent: number;
+    activeFleet: number;
+    paymentAlerts: number;
+    serviceDue: number;
+    contractsNearingCompletion: number;
+  };
+  kpi: {
+    activeFleet: number;
+    paymentAlerts: number;
+    serviceDue: number;
+    contractsNearingCompletion: number;
     utilizationPercent: number;
   };
   fleet: {
@@ -526,6 +658,8 @@ export type MapAsset = {
   isImmobilized: boolean;
   nextServiceDueKm: number | null;
   nextServiceDueDate: string | null;
+  daysUntilService: number | null;
+  serviceDueSoon: boolean;
   averageDailyKm: number | null;
   mileage: {
     monthlyLimitKm: number | null;
@@ -538,12 +672,21 @@ export type MapAsset = {
   lastTelematicsSyncAt: string | null;
 };
 
+export type DriverScoreBreakdown = {
+  overall: number;
+  speeding: number;
+  harshBraking: number;
+  harshAcceleration: number;
+  idling: number;
+};
+
 export type VehicleTelematicsDetail = {
   vehicle: Vehicle & {
     isImmobilized: boolean;
     lastKnownLat: string | null;
     lastKnownLng: string | null;
     averageDailyKm: string | null;
+    lastTelematicsSyncAt: string | null;
     telematicsEvents?: Array<{
       id: string;
       type: string;
@@ -560,6 +703,20 @@ export type VehicleTelematicsDetail = {
     estimatedDaysUntilService: number;
   } | null;
   mileage: MapAsset['mileage'];
+  scoreBreakdown: DriverScoreBreakdown | null;
+  recentBreaches?: Array<{
+    id: string;
+    code: string;
+    severity: string;
+    message: string;
+    occurredAt: string;
+  }>;
+  ruleBreaches?: Array<{
+    code: string;
+    severity: string;
+    message: string;
+    occurredAt: string;
+  }>;
   provider: string;
 };
 

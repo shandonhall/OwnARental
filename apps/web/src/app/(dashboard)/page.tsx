@@ -21,7 +21,7 @@ const STATUS_COLOR: Record<string, string> = {
   AVAILABLE: '#eab024',
   PAID_UP: '#16a34a',
   RETURNED: '#929191',
-  WRITTEN_OFF: '#2c3d49',
+  WRITTEN_OFF: '#1a2832',
 };
 
 function money(value: string | null) {
@@ -86,10 +86,16 @@ function KpiCard({
 }
 
 function AlertRow({ item }: { item: DashboardAlert }) {
+  const href = item.contractId
+    ? `/contracts/${item.contractId}`
+    : item.vehicle
+      ? `/fleet/${item.vehicle.id}`
+      : '/map';
+
   return (
     <li>
       <Link
-        href={`/contracts/${item.contractId}`}
+        href={href}
         className="group flex items-start justify-between gap-4 border-b border-slate-100 py-3 transition last:border-0 hover:bg-slate-50"
       >
         <div className="min-w-0">
@@ -107,7 +113,19 @@ function AlertRow({ item }: { item: DashboardAlert }) {
             >
               {money(item.amount)}
             </p>
-          ) : null}
+          ) : (
+            <p
+              className={
+                item.severity === 'high' ? 'text-danger' : 'text-warning'
+              }
+            >
+              {item.kind === 'SERVICE_DUE'
+                ? 'Service'
+                : item.kind === 'RULE_BREACH'
+                  ? 'Breach'
+                  : 'Alert'}
+            </p>
+          )}
           {shortDate(item.date) ? (
             <p className="mt-0.5 text-xs text-brand-grey">
               {shortDate(item.date)}
@@ -158,6 +176,7 @@ export default function HomeDashboardPage() {
 
   const data = query.data;
   const fleet = data?.fleet;
+  const kpi = data?.kpi;
   const attention = data?.attention ?? [];
   const wins = data?.wins ?? [];
 
@@ -210,38 +229,38 @@ export default function HomeDashboardPage() {
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <KpiCard
-              label="Fleet"
-              value={fleet.total}
-              hint="Vehicles on books"
+              label="Active fleet"
+              value={kpi?.activeFleet ?? fleet.active + fleet.arrears}
+              hint={`${fleet.onContract} on contract · ${fleet.available} available`}
               accent="#1680ab"
             />
             <KpiCard
-              label="On contract"
-              value={fleet.onContract}
-              hint="Active assignments"
-              accent="#16a34a"
-            />
-            <KpiCard
-              label="Available"
-              value={fleet.available}
-              hint="Ready to place"
-              accent="#eab024"
-            />
-            <KpiCard
-              label="Arrears"
-              value={fleet.arrears}
-              hint="Needs recovery"
+              label="Payment alerts"
+              value={kpi?.paymentAlerts ?? 0}
+              hint="Missed, late, or arrears"
               accent="#c01725"
             />
             <KpiCard
-              label="Avg score"
-              value={
+              label="Service due"
+              value={kpi?.serviceDue ?? 0}
+              hint="Within 14 days"
+              accent="#eab024"
+            />
+            <KpiCard
+              label="Nearing completion"
+              value={kpi?.contractsNearingCompletion ?? 0}
+              hint="Final 90 days"
+              accent="#1a2832"
+            />
+            <KpiCard
+              label="Utilization"
+              value={`${kpi?.utilizationPercent ?? fleet.utilizationPercent}%`}
+              hint={
                 fleet.averageDriverScore != null
-                  ? fleet.averageDriverScore
-                  : '—'
+                  ? `Avg score ${fleet.averageDriverScore}`
+                  : 'Fleet on the road'
               }
-              hint="Driver behaviour"
-              accent="#929191"
+              accent="#16a34a"
             />
           </div>
 

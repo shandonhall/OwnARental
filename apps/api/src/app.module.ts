@@ -8,6 +8,9 @@ import { VehiclesModule } from './vehicles/vehicles.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { TelematicsModule } from './telematics/telematics.module';
+import { SearchModule } from './search/search.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { GhlModule } from './ghl/ghl.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -29,6 +32,9 @@ import { AppService } from './app.service';
     ContractsModule,
     LedgerModule,
     TelematicsModule,
+    SearchModule,
+    NotificationsModule,
+    GhlModule,
     DashboardModule,
   ],
   controllers: [AppController],

@@ -55,4 +55,10 @@ export class ClientsController {
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.clientsService.remove(id);
   }
+
+  @Post(':id/sync-ghl')
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.FLEET_MANAGER)
+  syncGhl(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clientsService.syncToGhl(id);
+  }
 }

@@ -48,6 +48,7 @@ export default function MapPage() {
   const status = useQuery({
     queryKey: ['telematics-status'],
     queryFn: () => api.getTelematicsStatus(),
+    refetchInterval: 60_000,
   });
 
   const mapQuery = useQuery({
@@ -61,6 +62,7 @@ export default function MapPage() {
     (asset) => asset.lat != null && asset.lng != null,
   );
   const overLimit = assets.filter((asset) => asset.mileage.overLimit);
+  const serviceDue = assets.filter((asset) => asset.serviceDueSoon);
 
   async function syncFleet() {
     setSyncing(true);
@@ -68,10 +70,14 @@ export default function MapPage() {
     try {
       const result = await api.syncFleet();
       setMessage(
-        `Synced ${result.synced} vehicles via ${result.provider} provider`,
+        result.failed > 0
+          ? `Synced ${result.synced}, ${result.failed} failed via ${result.provider}`
+          : `Synced ${result.synced} vehicles via ${result.provider} provider`,
       );
       await queryClient.invalidateQueries({ queryKey: ['telematics-map'] });
+      await queryClient.invalidateQueries({ queryKey: ['telematics-status'] });
       await queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-overview'] });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Sync failed');
     } finally {
@@ -79,23 +85,56 @@ export default function MapPage() {
     }
   }
 
+  const provider = status.data?.provider ?? '—';
+  const intervalMins =
+    status.data?.syncIntervalMs != null
+      ? Math.round(status.data.syncIntervalMs / 60_000)
+      : null;
+
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl text-navy">Live asset map</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-3xl text-navy">Live asset map</h1>
+            <span
+              className={`rounded-md px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${
+                provider === 'live'
+                  ? 'bg-emerald-50 text-success'
+                  : 'bg-slate-100 text-brand-grey'
+              }`}
+            >
+              {provider} CarTrack
+            </span>
+            {status.data?.queueEnabled ? (
+              <span className="rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-brand">
+                BullMQ
+              </span>
+            ) : null}
+          </div>
           <p className="mt-1 text-brand-grey">
             Status-colored pins for the fleet. Use the table to match each
             vehicle to its renter and open their profile.
           </p>
           {status.data ? (
-            <p className="mt-2 text-xs text-brand-grey">{status.data.message}</p>
+            <p className="mt-2 text-xs text-brand-grey">
+              {status.data.message}
+              {status.data.autoSyncEnabled && intervalMins != null
+                ? ` · Auto-sync every ${intervalMins} min`
+                : ' · Auto-sync off'}
+              {status.data.lastFleetSyncAt
+                ? ` · Last sync ${new Date(status.data.lastFleetSyncAt).toLocaleString()}`
+                : ''}
+            </p>
           ) : null}
         </div>
         <div className="flex gap-2">
           <SecondaryButton
             type="button"
-            onClick={() => mapQuery.refetch()}
+            onClick={() => {
+              void mapQuery.refetch();
+              void status.refetch();
+            }}
             disabled={mapQuery.isFetching}
           >
             Refresh
@@ -107,8 +146,20 @@ export default function MapPage() {
       </div>
 
       {message ? <p className="text-sm text-brand">{message}</p> : null}
+      {status.data?.lastFleetSyncError ? (
+        <p className="text-sm text-danger">{status.data.lastFleetSyncError}</p>
+      ) : null}
+      {status.data?.lastFleetSync?.errors?.length ? (
+        <ul className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+          {status.data.lastFleetSync.errors.slice(0, 5).map((error) => (
+            <li key={error.vehicleId}>
+              {error.registration ?? error.vehicleId}: {error.message}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <p className="text-xs uppercase tracking-wide text-brand-grey">
             Located
@@ -122,6 +173,12 @@ export default function MapPage() {
             Over mileage limit
           </p>
           <p className="mt-1 text-2xl text-warning">{overLimit.length}</p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-brand-grey">
+            Service due ≤14d
+          </p>
+          <p className="mt-1 text-2xl text-warning">{serviceDue.length}</p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <p className="text-xs uppercase tracking-wide text-brand-grey">
@@ -152,6 +209,7 @@ export default function MapPage() {
               <th className="px-4 py-3 font-medium">Mileage use</th>
               <th className="px-4 py-3 font-medium">Next service</th>
               <th className="px-4 py-3 font-medium">Score</th>
+              <th className="px-4 py-3 font-medium">Last sync</th>
             </tr>
           </thead>
           <tbody>
@@ -203,19 +261,35 @@ export default function MapPage() {
                     ? `${asset.mileage.usagePercent}% of limit`
                     : 'No limit'}
                 </td>
-                <td className="px-4 py-3 text-slate-600">
+                <td
+                  className={`px-4 py-3 ${
+                    asset.serviceDueSoon ? 'text-warning' : 'text-slate-600'
+                  }`}
+                >
                   {asset.nextServiceDueDate
                     ? new Date(asset.nextServiceDueDate).toLocaleDateString()
                     : '—'}
+                  {asset.daysUntilService != null ? (
+                    <span className="mt-0.5 block text-xs text-brand-grey">
+                      {asset.daysUntilService < 0
+                        ? `${Math.abs(asset.daysUntilService)}d overdue`
+                        : `${asset.daysUntilService}d`}
+                    </span>
+                  ) : null}
                 </td>
                 <td className={`px-4 py-3 ${scoreClass(asset.driverScore)}`}>
                   {asset.driverScore ?? '—'}
+                </td>
+                <td className="px-4 py-3 text-xs text-brand-grey">
+                  {asset.lastTelematicsSyncAt
+                    ? new Date(asset.lastTelematicsSyncAt).toLocaleString()
+                    : 'Never'}
                 </td>
               </tr>
             ))}
             {assets.length === 0 && !mapQuery.isLoading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-brand-grey">
+                <td colSpan={8} className="px-4 py-8 text-brand-grey">
                   No map assets yet — sync telematics to populate locations.
                 </td>
               </tr>

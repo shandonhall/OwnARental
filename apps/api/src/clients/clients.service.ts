@@ -1,14 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto, UpdateClientDto } from './clients.schemas';
+import { GhlService } from '../ghl/ghl.service';
 
 @Injectable()
 export class ClientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ClientsService.name);
 
-  create(data: CreateClientDto) {
-    return this.prisma.client.create({
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ghl: GhlService,
+  ) {}
+
+  async create(data: CreateClientDto) {
+    const client = await this.prisma.client.create({
       data: {
         ...data,
         email: data.email ?? null,
@@ -19,6 +25,9 @@ export class ClientsService {
         handoverPhotosUrls: data.handoverPhotosUrls ?? [],
       },
     });
+
+    await this.ghl.syncClientContact(client);
+    return this.findOne(client.id);
   }
 
   findAll(search?: string) {
@@ -71,10 +80,12 @@ export class ClientsService {
 
   async update(id: string, data: UpdateClientDto) {
     await this.findOne(id);
-    return this.prisma.client.update({
+    const client = await this.prisma.client.update({
       where: { id },
       data,
     });
+    await this.ghl.syncClientContact(client);
+    return this.findOne(id);
   }
 
   async remove(id: string) {
@@ -83,5 +94,14 @@ export class ClientsService {
       where: { id },
       data: { isActive: false },
     });
+  }
+
+  async syncToGhl(id: string) {
+    const client = await this.findOne(id);
+    const contactId = await this.ghl.syncClientContact(client);
+    if (!contactId) {
+      this.logger.warn(`GHL sync returned no contact id for client ${id}`);
+    }
+    return this.findOne(id);
   }
 }
