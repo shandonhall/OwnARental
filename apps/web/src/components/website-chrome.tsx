@@ -153,7 +153,7 @@ function StickyNav() {
             className="h-8 w-8"
           />
         </Link>
-        <nav className="sticky-nav-links hidden md:flex">
+        <nav className="sticky-nav-links" aria-label="Quick links">
           {WEBSITE_NAV.map((item) => (
             <Link
               key={item.href}

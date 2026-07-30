@@ -90,18 +90,18 @@ export default function WebsiteHomePage() {
                 are confirmed with you before you drive.
               </p>
             </Reveal>
-            <Reveal className="price-block md:text-right" delay={140} from="right">
-              <div className="price-panel inline-block bg-[var(--oar-navy)] px-6 py-7 text-left text-white md:ml-auto md:px-8 md:py-9 md:text-right">
+            <Reveal className="price-block" delay={140} from="right">
+              <div className="price-panel inline-block bg-[var(--oar-navy)] px-6 py-7 text-left text-white md:px-8 md:py-9">
                 <p className="font-marketing text-xs uppercase tracking-[0.22em] text-[var(--oar-gold)]">
                   From
                 </p>
                 <p className="price-figure font-marketing mt-2 text-5xl font-bold leading-none md:text-7xl">
                   <CountUp value={4426} />
                 </p>
-                <p className="mt-3 max-w-xs text-sm text-white/70 md:ml-auto">
+                <p className="price-panel-note mt-3 max-w-xs text-sm text-white/70">
                   Estimated monthly · confirm inclusions with the team
                 </p>
-                <div className="mt-5 h-1.5 w-24 bg-[var(--oar-gold)] md:ml-auto" />
+                <div className="price-panel-rule mt-5 h-1.5 w-24 bg-[var(--oar-gold)]" />
               </div>
             </Reveal>
           </div>

@@ -31,7 +31,15 @@ export function Reveal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  const direction = className.includes('deal-card-slot') ? 'fade' : from;
+  const [compact, setCompact] = useState(false);
+  const direction =
+    className.includes('deal-card-slot') || compact ? 'fade' : from;
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    setCompact(Boolean(node.closest('.website-compact')));
+  }, []);
 
   useEffect(() => {
     const node = ref.current;
@@ -50,9 +58,21 @@ export function Reveal({
           observer.disconnect();
         }
       },
-      { threshold: 0.12, root, rootMargin: '0px 0px -8% 0px' },
+      { threshold: 0.08, root, rootMargin: '0px 0px -4% 0px' },
     );
     observer.observe(node);
+
+    // If already in view on mount (common in phone preview), reveal immediately
+    const rect = node.getBoundingClientRect();
+    const rootRect =
+      root instanceof Element ? root.getBoundingClientRect() : null;
+    const top = rootRect ? rect.top - rootRect.top : rect.top;
+    const viewH = rootRect ? rootRect.height : window.innerHeight;
+    if (top < viewH * 0.92 && top + rect.height > 0) {
+      setVisible(true);
+      observer.disconnect();
+    }
+
     return () => observer.disconnect();
   }, []);
 
