@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f6f6;
+  --foreground: #020b0f;
+  --surface: #ffffff;
+  --brand: #1680ab;
+  --brand-red: #c01725;
+  --brand-gold: #eab024;
+  --brand-grey: #929191;
+  --navy: #2c3d49;
+  --success: #16a34a;
+  --warning: #eab024;
+  --danger: #c01725;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-brand: var(--brand);
+  --color-brand-red: var(--brand-red);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-grey: var(--brand-grey);
+  --color-navy: var(--navy);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-body), Varela, Helvetica, Arial, sans-serif;
+  --font-display: var(--font-display), Varela, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), Varela, Helvetica, Arial, sans-serif;
+}
+
+/* Dashboard surface helpers aligned to ownarental.co.za */
+.oar-panel {
+  border: 1px solid rgb(226 232 240);
+  background: var(--surface);
+  border-radius: 0.75rem;
+}
+
+.oar-topbar {
+  background: var(--navy);
+  color: white;
+}

@@ -1,0 +1,1115 @@
+.website-root {
+  --oar-red: #c01725;
+  --oar-gold: #eab024;
+  --oar-blue: #1680ab;
+  --oar-navy: #1a2832;
+  --oar-ink: #020b0f;
+  --oar-mist: #eef3f6;
+  --oar-grey: #929191;
+  color: var(--oar-ink);
+  background: #fff;
+  overflow-x: clip;
+}
+
+.website-root .font-marketing {
+  font-family: var(--font-marketing), Varela, Helvetica, Arial, sans-serif;
+}
+
+@keyframes oar-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes oar-kenburns {
+  0% {
+    transform: scale(1.12) translate3d(2%, 0, 0);
+  }
+  100% {
+    transform: scale(1) translate3d(-1%, 0, 0);
+  }
+}
+
+@keyframes oar-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 23, 37, 0.45);
+  }
+  55% {
+    box-shadow: 0 0 0 14px rgba(192, 23, 37, 0);
+  }
+}
+
+@keyframes oar-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes oar-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes oar-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.website-root .animate-rise {
+  animation: oar-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.website-root .animate-rise-delay {
+  animation: oar-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+.website-root .animate-rise-delay-2 {
+  animation: oar-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+}
+
+.website-root .animate-rise-delay-3 {
+  animation: oar-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.36s both;
+}
+
+.website-root .animate-hero-media {
+  animation: oar-kenburns 18s ease-out both;
+}
+
+.website-root .cta-pulse {
+  animation: oar-pulse 2.4s ease-out infinite;
+}
+
+.website-root .gold-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.website-root .gold-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0.06em;
+  width: 100%;
+  height: 0.12em;
+  background: var(--oar-gold);
+  transform-origin: left;
+  animation: oar-draw 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+}
+
+.website-root .reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.website-root .reveal-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.website-root .reveal-fade,
+.website-root .reveal-fade.reveal-in {
+  transform: none;
+}
+
+.website-root .marquee {
+  overflow: hidden;
+  border-block: 1px solid rgba(255, 255, 255, 0.12);
+  background: #121c24;
+  color: white;
+}
+
+.website-root .marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 0;
+  animation: oar-marquee 28s linear infinite;
+}
+
+.website-root .marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.9rem 1.25rem;
+  font-family: var(--font-marketing), sans-serif;
+  font-size: clamp(0.95rem, 2vw, 1.15rem);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.website-root .marquee-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--oar-gold);
+  flex-shrink: 0;
+}
+
+.website-root .slash-bottom {
+  clip-path: polygon(0 0, 100% 0, 100% 86%, 0 100%);
+}
+
+.website-root .slash-top {
+  clip-path: polygon(0 14%, 100% 0, 100% 100%, 0 100%);
+}
+
+.website-root .giant-type {
+  font-size: clamp(4.5rem, 16vw, 11rem);
+  line-height: 0.82;
+  letter-spacing: -0.03em;
+}
+
+.website-root .hero-glow {
+  animation: oar-glow 5s ease-in-out infinite;
+}
+
+.website-root .option-link {
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+.website-root .option-link:hover {
+  transform: translateX(6px);
+}
+
+.website-root .sticky-apply {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .website-root .sticky-apply {
+    display: inline-flex;
+  }
+}
+
+/* —— Device preview toggle (demo) —— */
+.website-root .device-toggle {
+  position: fixed;
+  top: 0.85rem;
+  left: 50%;
+  z-index: 60;
+  display: inline-flex;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(26, 40, 50, 0.92);
+  padding: 0.25rem;
+  box-shadow: 0 10px 30px rgba(2, 11, 15, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.website-root .device-toggle button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 0.55rem 1rem;
+  text-transform: uppercase;
+}
+
+.website-root .device-toggle button.is-active {
+  background: var(--oar-red);
+  color: white;
+}
+
+.website-root .device-stage {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4.5rem 1rem 2rem;
+  background:
+    radial-gradient(circle at top, rgba(22, 128, 171, 0.18), transparent 40%),
+    linear-gradient(180deg, #121c24 0%, #1a2832 100%);
+}
+
+.website-root .device-stage-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.website-root .phone-frame {
+  position: relative;
+  width: min(390px, calc(100vw - 2rem));
+  height: min(780px, calc(100svh - 7rem));
+  border-radius: 2.1rem;
+  border: 3px solid #0b1218;
+  background: #0b1218;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 30px 80px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.website-root .phone-notch {
+  position: absolute;
+  top: 0.55rem;
+  left: 50%;
+  z-index: 5;
+  width: 7.5rem;
+  height: 1.35rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #0b1218;
+}
+
+.website-root .phone-home {
+  position: absolute;
+  bottom: 0.45rem;
+  left: 50%;
+  z-index: 5;
+  width: 7rem;
+  height: 0.28rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.website-root .phone-screen {
+  position: relative;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 1.85rem;
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(26, 40, 50, 0.35) transparent;
+}
+
+.website-root .phone-screen::-webkit-scrollbar {
+  width: 4px;
+}
+
+.website-root .phone-screen::-webkit-scrollbar-thumb {
+  background: rgba(26, 40, 50, 0.35);
+  border-radius: 999px;
+}
+
+.website-root .device-mobile .sticky-apply {
+  display: inline-flex;
+  right: 0.85rem;
+  bottom: 1.4rem;
+}
+
+/* —— Real / preview mobile menu —— */
+.website-root .mobile-menu-btn {
+  position: fixed;
+  top: 3.35rem;
+  right: 1rem;
+  z-index: 35;
+  display: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(26, 40, 50, 0.55);
+  color: white;
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 767px) {
+  .website-root .mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  .website-root .device-toggle {
+    display: none;
+  }
+
+  .website-root .sticky-apply {
+    display: inline-flex;
+  }
+}
+
+/*
+  Compact layout — used for:
+  1) Desktop “Mobile” phone-frame preview (viewport is still wide, so Tailwind md: lies)
+  2) Real phones via .website-compact on the stage
+*/
+.website-compact {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+.website-compact .desktop-nav {
+  display: none !important;
+}
+
+.website-compact .menu-spacer {
+  display: block !important;
+}
+
+.website-compact .mobile-menu-btn {
+  display: inline-flex;
+  top: 2.65rem;
+  right: 0.75rem;
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.website-compact .topbar-email {
+  display: none;
+}
+
+.website-compact .topbar-dash {
+  display: none !important;
+}
+
+.website-compact .site-logo {
+  height: 2rem !important;
+  width: auto;
+}
+
+.website-compact .site-topbar {
+  padding-inline: 0.85rem;
+  padding-block: 0.4rem;
+  font-size: 0.7rem;
+}
+
+.website-compact .site-nav {
+  padding-inline: 0.85rem;
+  padding-block: 0.75rem;
+}
+
+.website-compact .slash-bottom,
+.website-compact .slash-top {
+  clip-path: none;
+}
+
+.website-compact .giant-type {
+  display: none;
+}
+
+.website-compact .hero-glow {
+  display: none;
+}
+
+.website-compact .hero-section {
+  min-height: auto;
+}
+
+.website-compact .hero-copy {
+  min-height: 100svh;
+  justify-content: flex-end;
+  padding: 6.5rem 1rem 4.5rem;
+}
+
+.website-compact .hero-title {
+  /* Avoid vw — phone-frame preview inherits the desktop viewport width */
+  font-size: 2.35rem !important;
+  line-height: 0.95 !important;
+  max-width: 100%;
+}
+
+.website-compact .hero-sub {
+  margin-top: 0.85rem !important;
+  font-size: 0.9rem !important;
+  line-height: 1.45;
+  max-width: 100%;
+}
+
+.website-compact .hero-actions {
+  margin-top: 1.25rem !important;
+  flex-direction: column;
+  width: 100%;
+}
+
+.website-compact .hero-actions a {
+  width: 100%;
+}
+
+.website-compact .marquee-item {
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  padding: 0.7rem 0.9rem;
+  gap: 0.85rem;
+}
+
+.website-compact .price-section,
+.website-compact .options-section,
+.website-compact .care-section,
+.website-compact .apply-section,
+.website-compact .contact-section {
+  padding: 2.75rem 1rem !important;
+}
+
+.website-compact .section-title {
+  font-size: 2.15rem !important;
+  line-height: 0.98 !important;
+}
+
+.website-compact .section-copy {
+  font-size: 0.95rem !important;
+  margin-top: 0.85rem !important;
+}
+
+.website-compact .price-figure {
+  font-size: 3rem !important;
+}
+
+.website-compact .price-grid,
+.website-compact .care-grid,
+.website-compact .contact-grid,
+.website-compact .options-grid,
+.website-compact .qualify-grid,
+.website-compact .form-name-row {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+}
+
+.website-compact .price-grid,
+.website-compact .care-grid {
+  gap: 1.5rem !important;
+}
+
+.website-compact .contact-grid {
+  gap: 1.75rem !important;
+}
+
+.website-compact .footer-row {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+}
+
+.website-compact .price-block {
+  text-align: left !important;
+}
+
+.website-compact .price-block .mt-3 {
+  margin-left: 0 !important;
+  max-width: none !important;
+}
+
+.website-compact .price-block .mt-5 {
+  margin-left: 0 !important;
+}
+
+.website-compact .option-card {
+  min-height: 0 !important;
+  padding: 1.35rem 1.15rem !important;
+}
+
+.website-compact .option-title {
+  font-size: 1.65rem !important;
+}
+
+.website-compact .qualify-grid {
+  gap: 0.5rem !important;
+  margin-top: 1.5rem !important;
+}
+
+.website-compact .contact-form {
+  padding: 1.15rem !important;
+}
+
+.website-compact .form-name-row {
+  gap: 0.75rem !important;
+}
+
+.website-compact .sticky-apply {
+  display: inline-flex;
+  right: 0.85rem;
+  bottom: 1.15rem;
+  padding: 0.7rem 1.15rem;
+  font-size: 0.8rem;
+}
+
+.website-compact .site-footer {
+  padding: 1.5rem 1rem 5.5rem !important;
+}
+
+.website-compact .mobile-nav-links a {
+  font-size: 1.45rem;
+}
+
+/* Phone frame: fixed elements are scoped by phone-screen's transform */
+.website-root .phone-screen .website-compact {
+  position: relative;
+  min-height: 100%;
+}
+
+.website-root .phone-screen .website-compact > .site-page {
+  min-height: 100%;
+}
+
+.website-root .phone-screen .hero-section,
+.website-root .phone-screen .hero-copy {
+  min-height: 100%;
+}
+
+.website-root .phone-screen .sticky-apply {
+  display: inline-flex;
+  right: 0.85rem;
+  bottom: 1.35rem;
+}
+
+.website-root .phone-screen .mobile-menu-btn {
+  top: 2.85rem;
+  right: 0.85rem;
+}
+
+.website-root .burger {
+  position: relative;
+  width: 1.1rem;
+  height: 0.85rem;
+}
+
+.website-root .burger span {
+  position: absolute;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: white;
+  transition: transform 0.2s ease, opacity 0.2s ease, top 0.2s ease;
+}
+
+.website-root .burger span:nth-child(1) {
+  top: 0;
+}
+.website-root .burger span:nth-child(2) {
+  top: 0.35rem;
+}
+.website-root .burger span:nth-child(3) {
+  top: 0.7rem;
+}
+
+.website-root .burger.is-open span:nth-child(1) {
+  top: 0.35rem;
+  transform: rotate(45deg);
+}
+.website-root .burger.is-open span:nth-child(2) {
+  opacity: 0;
+}
+.website-root .burger.is-open span:nth-child(3) {
+  top: 0.35rem;
+  transform: rotate(-45deg);
+}
+
+.website-root .mobile-nav-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 34;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  padding: 6rem 1.5rem 2rem;
+  background: linear-gradient(180deg, rgba(26, 40, 50, 0.72), rgba(26, 40, 50, 0.96));
+  backdrop-filter: blur(10px);
+}
+
+.website-root .mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.website-root .mobile-nav-links a {
+  color: white;
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.website-root .mobile-nav-cta {
+  display: inline-flex;
+  justify-content: center;
+  border-radius: 0.4rem;
+  background: var(--oar-red);
+  color: white;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.9rem 1rem;
+  text-transform: uppercase;
+}
+
+.website-root .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* —— Multi-page marketing extras —— */
+.website-root .deals-banner {
+  border-left: 4px solid var(--oar-gold);
+}
+
+.website-root .step-card,
+.website-root .qualify-item {
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.website-root .step-card:hover,
+.website-root .qualify-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(26, 40, 50, 0.08);
+}
+
+.website-root .include-panel {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1.25rem 1.15rem;
+  backdrop-filter: blur(8px);
+}
+
+.website-root .include-panel-muted {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.website-root .journey-rail {
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .website-root .journey-rail::before {
+    content: '';
+    position: absolute;
+    top: 1.15rem;
+    left: 8%;
+    right: 8%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      var(--oar-gold),
+      var(--oar-blue),
+      var(--oar-red),
+      var(--oar-gold)
+    );
+    opacity: 0.55;
+  }
+}
+
+.website-root .journey-node {
+  display: inline-flex;
+  width: 2.35rem;
+  height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--oar-navy);
+  color: white;
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+}
+
+.website-root .deals-section {
+  overflow: visible;
+}
+
+.website-root .deals-grid {
+  overflow: visible;
+  position: relative;
+  isolation: auto;
+}
+
+.website-root .deal-card-slot {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+}
+
+.website-root .deal-card-slot:hover,
+.website-root .deal-card-slot:focus-within,
+.website-root .deals-grid .deal-card-slot:has(.deal-card:hover) {
+  z-index: 40;
+}
+
+.website-root .deal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+}
+
+.website-root .deal-card-media {
+  position: relative;
+  z-index: 5;
+  height: 12.5rem;
+  margin: 0 0.2rem -2.75rem;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.website-root .deal-card-photo-wrap {
+  position: absolute;
+  left: -0.75rem;
+  right: -0.75rem;
+  bottom: 0.35rem;
+  top: -3.25rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+  animation: oar-deal-float 5.5s ease-in-out infinite;
+  filter: drop-shadow(0 18px 22px rgba(2, 11, 15, 0.35));
+  transition: filter 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.website-root .deal-card:hover .deal-card-photo-wrap {
+  filter: drop-shadow(0 40px 36px rgba(2, 11, 15, 0.5));
+  animation-play-state: paused;
+}
+
+.website-root .deal-card-photo {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: translateY(0) scale(1);
+  transform-origin: center bottom;
+  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.website-root .deal-card:hover .deal-card-photo {
+  transform: translateY(-28px) scale(1.2);
+}
+
+.website-root .deal-year {
+  position: absolute;
+  top: 0.15rem;
+  left: 0.35rem;
+  z-index: 3;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(26, 40, 50, 0.78);
+  backdrop-filter: blur(6px);
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--oar-gold);
+  pointer-events: none;
+}
+
+.website-root .deal-card-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 3.4rem 1.1rem 1.25rem;
+  background: white;
+  border: 1px solid rgba(26, 40, 50, 0.08);
+  box-shadow: 0 16px 40px rgba(26, 40, 50, 0.08);
+  transition:
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.website-root .deal-card:hover .deal-card-body {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px rgba(26, 40, 50, 0.12);
+}
+
+.website-root .deal-card-platform {
+  position: absolute;
+  top: 1.7rem;
+  left: 12%;
+  right: 12%;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(2, 11, 15, 0.18) 0%,
+    rgba(2, 11, 15, 0.05) 55%,
+    transparent 72%
+  );
+  filter: blur(2px);
+  pointer-events: none;
+  transition:
+    top 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.website-root .deal-card:hover .deal-card-platform {
+  top: 1.2rem;
+  opacity: 0.55;
+  transform: scaleX(0.84);
+}
+
+@keyframes oar-deal-kenburns {
+  0% {
+    transform: scale(1.02) translate3d(-1%, 0, 0);
+  }
+  100% {
+    transform: scale(1.07) translate3d(1%, -1%, 0);
+  }
+}
+
+@keyframes oar-deal-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+.website-root .deal-price {
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--oar-navy);
+}
+
+.website-root .deal-name {
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  color: var(--oar-navy);
+}
+
+.website-root .deal-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.website-root .deal-meta dt {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--oar-grey);
+}
+
+.website-root .deal-meta dd {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--oar-navy);
+}
+
+.website-root .deal-monthly {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(26, 40, 50, 0.08);
+}
+
+.website-root .deal-monthly span {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--oar-grey);
+}
+
+.website-root .deal-monthly strong {
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 1.35rem;
+  color: var(--oar-red);
+}
+
+.website-root .deal-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--oar-blue);
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+.website-root .deal-card:hover .deal-cta {
+  transform: translateX(4px);
+  color: var(--oar-red);
+}
+
+.website-root .rate-calculator {
+  background: white;
+  border: 1px solid rgba(26, 40, 50, 0.08);
+  padding: 1.35rem 1.25rem 1.4rem;
+  box-shadow: 0 18px 50px rgba(26, 40, 50, 0.08);
+}
+
+.website-root .rate-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--oar-mist);
+}
+
+.website-root .rate-tabs button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--oar-navy);
+  cursor: pointer;
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 0.55rem 1rem;
+  text-transform: uppercase;
+}
+
+.website-root .rate-tabs button.is-active {
+  background: var(--oar-navy);
+  color: white;
+}
+
+.website-root .rate-slider-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--oar-grey);
+}
+
+.website-root .rate-slider-label strong {
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--oar-navy);
+}
+
+.website-root .rate-slider {
+  width: 100%;
+  margin: 1rem 0 1.35rem;
+  accent-color: var(--oar-red);
+  cursor: pointer;
+}
+
+.website-root .rate-results {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.website-root .rate-kicker {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--oar-grey);
+}
+
+.website-root .rate-value {
+  margin-top: 0.35rem;
+  font-family: var(--font-marketing), sans-serif;
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--oar-navy);
+  animation: oar-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.website-root .rate-value-accent {
+  color: var(--oar-red);
+}
+
+.website-root .rate-note {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--oar-grey);
+}
+
+.website-compact .deals-grid,
+.website-compact .steps-grid,
+.website-compact .include-grid,
+.website-compact .journey-rail {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+}
+
+.website-compact .deal-meta {
+  grid-template-columns: 1fr 1fr !important;
+}
+
+.website-compact .rate-results {
+  grid-template-columns: 1fr !important;
+}
+
+.website-compact .page-hero .hero-copy {
+  min-height: 70svh;
+  padding: 6rem 1rem 3.5rem;
+}
+
+.website-compact .calculator-section,
+.website-compact .deals-section,
+.website-compact .feature-section,
+.website-compact .journey-section,
+.website-compact .split-band,
+.website-compact .preloved-section {
+  padding: 2.75rem 1rem !important;
+}
+
+.website-root .phone-screen .page-hero .hero-copy {
+  min-height: 70%;
+}
+

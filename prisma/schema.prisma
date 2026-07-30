@@ -1,0 +1,311 @@
+// Own A Rental — Prisma schema (Supabase PostgreSQL)
+// Auth users typically mirror supabase.auth.users via matching UUID `id`.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../apps/api/src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  FLEET_MANAGER
+}
+
+enum FicaStatus {
+  PENDING
+  PARTIAL
+  COMPLETE
+  REJECTED
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ACTIVE
+  ARREARS
+  PAID_UP
+  RETURNED
+  WRITTEN_OFF
+}
+
+enum PlanType {
+  CIP_10
+  CIP_20
+  LONG_TERM
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  ARREARS
+  COMPLETED
+  DEFAULTED
+  CANCELLED
+}
+
+enum LedgerEntryType {
+  RENTAL_PAYMENT
+  DEPOSIT
+  BALLOON_PAYMENT
+  FINE
+  TOLL
+  ADMIN_FEE
+  MAINTENANCE
+  ADJUSTMENT
+  REFUND
+}
+
+enum LedgerEntryStatus {
+  PENDING
+  ON_TIME
+  EARLY
+  LATE
+  FAILED
+  VOID
+}
+
+// ---------------------------------------------------------------------------
+// Users (RBAC — dashboard staff; immobilize requires SUPER_ADMIN)
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @db.Uuid // matches supabase.auth.users.id
+  email        String   @unique
+  fullName     String   @map("full_name")
+  role         Role     @default(FLEET_MANAGER)
+  phone        String?
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  ledgerEntries LedgerEntry[]
+
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Clients (renters + FICA — doc fields store Supabase Storage URLs only)
+// ---------------------------------------------------------------------------
+
+model Client {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName String @map("first_name")
+  lastName  String @map("last_name")
+  idNumber  String @unique @map("id_number") // SA ID / passport
+  email     String?
+  phone     String
+  altPhone  String? @map("alt_phone")
+
+  // Address (POPIA — minimize retention; keep structured)
+  addressLine1 String  @map("address_line_1")
+  addressLine2 String? @map("address_line_2")
+  city         String
+  province     String?
+  postalCode   String? @map("postal_code")
+
+  ficaStatus FicaStatus @default(PENDING) @map("fica_status")
+
+  // FICA document URLs → Supabase Storage (never binary blobs)
+  idDocumentUrl         String? @map("id_document_url")
+  driversLicenseUrl     String? @map("drivers_license_url")
+  payslipsUrl           String? @map("payslips_url") // 6 months pack
+  bankStatementsUrl     String? @map("bank_statements_url") // 6 months pack
+  proofOfResidenceUrl   String? @map("proof_of_residence_url")
+  handoverPhotosUrls    String[] @default([]) @map("handover_photos_urls")
+
+  // GoHighLevel CRM sync
+  ghlContactId String? @unique @map("ghl_contact_id")
+
+  notes     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  contracts Contract[]
+
+  @@index([lastName, firstName])
+  @@index([phone])
+  @@index([ficaStatus])
+  @@index([isActive])
+  @@map("clients")
+}
+
+// ---------------------------------------------------------------------------
+// Vehicles (fleet + CarTrack telematics + warranty)
+// ---------------------------------------------------------------------------
+
+model Vehicle {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  make           String
+  model          String
+  year           Int
+  color          String?
+  vin            String        @unique
+  registration   String        @unique
+  purchasePrice  Decimal       @map("purchase_price") @db.Decimal(12, 2)
+  purchaseDate   DateTime?     @map("purchase_date") @db.Date
+  status         VehicleStatus @default(AVAILABLE)
+
+  // Contract mileage allowance (km / month) when on assignment
+  monthlyMileageLimit Int? @map("monthly_mileage_limit")
+
+  // --- CarTrack telematics ---
+  carTrackDeviceId   String?   @unique @map("cartrack_device_id")
+  lastKnownLat       Decimal?  @map("last_known_lat") @db.Decimal(10, 7)
+  lastKnownLng       Decimal?  @map("last_known_lng") @db.Decimal(10, 7)
+  lastLocationAt     DateTime? @map("last_location_at")
+  currentOdometerKm  Int       @default(0) @map("current_odometer_km")
+  driverScore        Int? // 0–100
+  isImmobilized      Boolean   @default(false) @map("is_immobilized")
+  lastImmobilizedAt  DateTime? @map("last_immobilized_at")
+  lastTelematicsSyncAt DateTime? @map("last_telematics_sync_at")
+
+  // Predictive maintenance helpers
+  nextServiceDueKm   Int?      @map("next_service_due_km")
+  nextServiceDueDate DateTime? @map("next_service_due_date") @db.Date
+  averageDailyKm     Decimal?  @map("average_daily_km") @db.Decimal(8, 2)
+
+  // --- Warranty tracking ---
+  warrantyProvider   String?   @map("warranty_provider")
+  warrantyStartDate  DateTime? @map("warranty_start_date") @db.Date
+  warrantyExpiryDate DateTime? @map("warranty_expiry_date") @db.Date
+  warrantyKmLimit    Int?      @map("warranty_km_limit")
+  warrantyNotes      String?   @map("warranty_notes")
+
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  contracts Contract[]
+  telematicsEvents TelematicsEvent[]
+
+  @@index([status])
+  @@index([make, model])
+  @@index([nextServiceDueDate])
+  @@index([warrantyExpiryDate])
+  @@index([isImmobilized])
+  @@map("vehicles")
+}
+
+enum TelematicsEventType {
+  LOCATION
+  MILEAGE
+  DRIVER_SCORE
+  RULE_BREACH
+  IMMOBILIZE
+  MOBILIZE
+  SYNC
+}
+
+model TelematicsEvent {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicleId   String              @map("vehicle_id") @db.Uuid
+  type        TelematicsEventType
+  odometerKm  Int?                @map("odometer_km")
+  lat         Decimal?            @db.Decimal(10, 7)
+  lng         Decimal?            @db.Decimal(10, 7)
+  driverScore Int?                @map("driver_score")
+  message     String?
+  payload     Json?
+  recordedAt  DateTime            @default(now()) @map("recorded_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, recordedAt])
+  @@index([type])
+  @@map("telematics_events")
+}
+
+// ---------------------------------------------------------------------------
+// Contracts (Client ↔ Vehicle rent-to-own link)
+// ---------------------------------------------------------------------------
+
+model Contract {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  vehicleId String @map("vehicle_id") @db.Uuid
+
+  planType        PlanType       @map("plan_type")
+  status          ContractStatus @default(DRAFT)
+  termMonths      Int            @map("term_months")
+  monthlyRate     Decimal        @map("monthly_rate") @db.Decimal(12, 2)
+  depositAmount   Decimal        @default(0) @map("deposit_amount") @db.Decimal(12, 2)
+  balloonAmount   Decimal?       @map("balloon_amount") @db.Decimal(12, 2)
+  cipPercent      Int?           @map("cip_percent") // 10 or 20 when CIP plan
+  startDate       DateTime       @map("start_date") @db.Date
+  endDate         DateTime       @map("end_date") @db.Date
+  monthlyKmLimit  Int?           @map("monthly_km_limit")
+
+  // Running financials (denormalized for dashboard KPIs; ledger is source of truth)
+  totalPaid           Decimal @default(0) @map("total_paid") @db.Decimal(12, 2)
+  outstandingBalance  Decimal @default(0) @map("outstanding_balance") @db.Decimal(12, 2)
+
+  // End-of-term / GHL pipeline
+  ghlOpportunityId String? @map("ghl_opportunity_id")
+  endOfTermNotifiedAt DateTime? @map("end_of_term_notified_at")
+
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  ledger  LedgerEntry[]
+
+  @@index([clientId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([planType])
+  @@index([endDate])
+  @@index([status, endDate])
+  @@map("contracts")
+}
+
+// ---------------------------------------------------------------------------
+// Financial Ledger (all money movements against a contract)
+// ---------------------------------------------------------------------------
+
+model LedgerEntry {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId String            @map("contract_id") @db.Uuid
+  type       LedgerEntryType
+  status     LedgerEntryStatus @default(PENDING)
+  amount     Decimal           @db.Decimal(12, 2)
+  currency   String            @default("ZAR") @db.Char(3)
+
+  dueDate    DateTime? @map("due_date") @db.Date
+  paidAt     DateTime? @map("paid_at")
+  reference  String? // bank ref / invoice number
+  description String?
+  metadata   Json? // fine IDs, GHL message IDs, etc.
+
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  contract  Contract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([contractId])
+  @@index([createdById])
+  @@index([type])
+  @@index([status])
+  @@index([paidAt])
+  @@index([dueDate])
+  @@index([contractId, status])
+  @@index([contractId, paidAt])
+  @@map("ledger_entries")
+}

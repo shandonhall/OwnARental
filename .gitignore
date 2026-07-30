@@ -1,0 +1,15 @@
+node_modules/
+generated/
+apps/api/src/generated/
+.env
+.env.*
+!.env.example
+prisma/.env
+*.log
+dist/
+.next/
+coverage/
+.cursor/
+.DS_Store
+Thumbs.db
+*.tsbuildinfo

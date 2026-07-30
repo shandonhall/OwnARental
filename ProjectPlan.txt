@@ -1,0 +1,141 @@
+# Project Plan: Own A Rental - Fleet Management System
+
+## 1. Project Overview & Context
+This project entails building a custom, modular fleet and client management dashboard for "Own A Rental," a South African rent-to-own vehicle business based in Randburg, Johannesburg. The system caters to clients who are ITC listed, bank-declined, or first-time buyers. The primary goal is to provide the fleet manager with a centralized, data-rich dashboard to track vehicle telematics (via CarTrack API), client financial standing, and contract lifecycles. 
+
+**Reference Material:** "own a rental first brief prompt.m4a" and initial client brief.
+
+---
+
+## 2. UI/UX & Design System (Brand Alignment)
+To ensure the dashboard feels like an extension of the current business, all styling must match the live website: `https://ownarental.co.za/`. The frontend styling architecture (e.g., Tailwind CSS or CSS Modules) should declare these brand variables globally.
+
+*   **Color Palette (To be scraped/matched from the live site):**
+    *   **Primary Color:** Match the main brand color used on the website's headers, primary buttons, and logo accents.
+    *   **Secondary/Accent Color:** Match the highlight colors used on call-to-actions (e.g., "Contact Us" or "Deals" buttons).
+    *   **Dashboard Functional Colors:**
+        *   *Success (Green):* Paid up, on track, active.
+        *   *Warning (Yellow/Orange):* Upcoming service, due in 3 days, speeding alerts.
+        *   *Danger (Red):* Arrears, geo-fence breach, critical API failure.
+*   **Typography:** Map the dashboard's font family to the exact web fonts used on the Own A Rental website for headings and body copy (e.g., Open Sans, Montserrat, or Roboto).
+*   **Component Styling:**
+    *   Cards and tables should feature clean, modern borders with subtle drop-shadows to ensure readability.
+    *   Use the official "Own A Rental" logo in the top-left navigation rail of the dashboard.
+*   **Modularity in CSS:** Use a theme provider so that if the company rebrands in the future, updating the primary hex codes will cascade throughout the entire dashboard automatically.
+
+---
+
+## 3. Architecture & Tech Stack Strategy
+To ensure the system remains modular and scalable, it will be built using a Service-Oriented Architecture (SOA). Features will be isolated into independent modules to prevent future additions from breaking existing functionality.
+
+*   **Frontend UI:** Component-based architecture (e.g., React, Next.js, or Vue) for a highly responsive and reusable interface.
+*   **Backend API:** RESTful or GraphQL API (e.g., Node.js/Express, Python/Django, or Laravel) acting as the central nervous system.
+*   **Database:** Relational database (e.g., PostgreSQL or MySQL) to strictly define relationships between Clients, Vehicles, and Payments.
+*   **External APIs:** CarTrack (Telematics), AARTO/SANRAL (Traffic Fines), SMS/WhatsApp Gateway (Twilio/MessageBird), Accounting Software (Xero/Sage).
+*   **Event Handling:** Webhooks and cron jobs for real-time alerts and automated scheduling.
+
+---
+
+## 4. Core Modules & Feature Breakdown
+
+### Module 1: Dashboard & Global UI
+*   **Global Search Engine:** Unified search bar to locate clients, vehicles (registration/VIN), or ID numbers instantly.
+*   **Notification Center:** Real-time alert feed for urgent system flags (missed payments, speeding, geo-fence breaches).
+*   **KPI Banner:** Quick-glance metrics including Active Fleet count, Payment Alerts, Service Due warnings, and Contracts Nearing Completion.
+*   **Master Fleet Workspace:** Primary data table filtering all cars by status (New, Arrears, Paid Up), plan type (e.g., 10% CIP, 20% CIP, Long Term), and contract progress.
+
+### Module 2: CarTrack Telematics Integration
+*   **Live Asset Map:** Visual map plotting real-time locations of all active vehicles with status-colored pins.
+*   **Mileage Tracking:** Automated monitoring of current kilometers against monthly contract limits.
+*   **Predictive Maintenance:** Automated calculation of the next required service date based on live odometer readings and average daily usage.
+*   **Driver Scoring System:** Gamified metric (0-100) analyzing speed, braking, and location data to assess asset care.
+*   **Remote Immobilization Protocol:** Secure, one-click trigger via the CarTrack API to safely immobilize a vehicle if a client absconds or enters a high-risk zone.
+
+### Module 3: Client & Financial Management
+*   **Client Profiles:** Dedicated views for each renter containing FICA documents (ID Document, Valid Drivers License, 6 Months Payslips, 6 Months Bank Statements, Proof of Residence), contact details, and vehicle handover condition photos.
+*   **Financial Ledger:** Historical log of all payments (on-time, early, late) and total outstanding balance calculations.
+*   **Term Tracking:** Visual progress bar indicating exact placement within the rent-to-own timeline.
+*   **Asset Profitability Tracker:** ROI calculator comparing vehicle purchase price and maintenance costs against accumulated rental income.
+
+### Module 4: Automation & Workflow
+*   **Rule-Breach Alerts:** Automated SMS/WhatsApp messages sent directly to clients for speeding or entering flagged zones.
+*   **Billing Communications:** Automated payment reminders and immediate late-payment notices.
+*   **End-of-Term Kanban Pipeline:** Visual board automatically populating with clients in their final 90 days to manage ownership transfer, balloon payments, or vehicle return.
+
+### Module 5: Value-Add Integrations
+*   **Traffic Fine & Toll Management:** Integration with municipal/SANRAL APIs to match fleet registrations with outstanding fines.
+*   **Automated Invoicing:** System-generated invoices for incurred fines sent to clients, automatically including an administrative handling fee.
+
+---
+
+## 5. Database Schema Structure (High-Level)
+*   **Users Table:** Dashboard staff profiles linked to Supabase Auth, with RBAC roles (`SUPER_ADMIN`, `ADMIN`, `FLEET_MANAGER`).
+*   **Clients Table:** Renter personal details, FICA status, and contact info.
+*   **Vehicles Table:** Car details (Make, Model, Year, VIN, Reg, Purchase Price, Color).
+*   **Contracts Table:** The link between Clients and Vehicles, storing term lengths, plan types (10% or 20% CIP), and monthly rates.
+*   **Payments Table:** Ledger of all transactions linked to a Contract.
+*   **Telematics Table:** Log of daily mileage, driver scores, and specific rule-breach events.
+
+---
+
+## 5b. Authentication & Access Control
+Staff access the dashboard via a **login screen** (email + password) powered by **Supabase Auth**.
+
+*   **Roles:**
+    *   **Admin** (`ADMIN` / `SUPER_ADMIN`): Full operational control. Required for destructive actions and, later, CarTrack immobilization (`SUPER_ADMIN` only).
+    *   **User** (`FLEET_MANAGER`): Day-to-day fleet and client management (view/create/edit). Cannot perform admin-only or immobilization actions.
+*   **Session:** JWT issued by Supabase; Next.js protects dashboard routes; NestJS validates the Bearer token on API requests.
+*   **User provisioning:** Auth accounts are created in Supabase Auth; a matching `users` row stores `role`, name, and activity flags.
+
+---
+
+## 6. Development Phases & Rollout
+
+| Phase | Focus Area | Core Deliverables |
+| :--- | :--- | :--- |
+| **Phase 1: Foundation** | Database, Auth & Core CRUD | DB setup, Login screen + RBAC (Admin/User), Client Profiles, Vehicle database, Master Fleet Table, Basic Routing. |
+| **Phase 2: Finances** | Contracts & Ledger | Payment tracking, Term progress, Outstanding balances, Profitability Tracker. |
+| **Phase 3: Telematics** | CarTrack Integration | API handshake, Live Map, Mileage syncing, Predictive Maintenance calculation. |
+| **Phase 4: Dashboard UI** | Overview & Brand Match | KPI Banner, Global Search, matching website CSS variables, Notification center setup. |
+| **Phase 5: Automation** | Webhooks & Comms | Automated SMS/WhatsApp, Driver Scoring, Immobilization trigger. |
+| **Phase 6: Advanced** | Pipeline & Fines | End-of-Term Kanban board, Traffic fine API integration, Automated Fines invoicing. |
+
+---
+
+## 7. Future Considerations & Notes
+*   **Scalability:** Ensure the database can handle high-frequency writes if telematics polling is increased.
+*   **Security:** Immobilization features must have fail-safes and require manager-level authentication to trigger.
+*   **Compliance:** Ensure data storage complies with the POPI Act (Protection of Personal Information Act) regarding client identification and tracking data.
+
+---
+
+## 8. Finalized Tech Stack (Bulletproof Architecture)
+To ensure maximum reliability, type safety, and scalability, the following stack will be explicitly utilized:
+
+### Frontend (Dashboard UI)
+*   **Framework:** Next.js (React) with TypeScript.
+*   **Styling:** Tailwind CSS + Shadcn/UI (Theme variables will be mapped directly to the `ownarental.co.za` brand guidelines).
+*   **State Management:** Zustand (Global State) + TanStack Query (Data Fetching/Caching).
+
+### Backend (API & Logic)
+*   **Framework:** NestJS (Node.js) with TypeScript. (Ensures strict modularity between telematics, clients, and financial systems).
+*   **Validation:** Zod (Strict schema validation for incoming CarTrack and GHL data).
+*   **Database:** PostgreSQL (Crucial for relational integrity regarding ledgers and contracts).
+*   **ORM:** Prisma (Provides compile-time database type safety).
+*   **Background Tasks:** Redis + BullMQ (For asynchronous processing of high-volume telematics pings without blocking the main thread).
+
+### Infrastructure
+*   **Auth:** Supabase Auth (email/password login, JWT sessions) with Prisma `users` role mapping for Admin vs User (fleet manager) rights.
+*   **Containerization:** Docker (Ensuring consistent development and production environments).
+*   **Deployment:** AWS (ECS/Amplify) or managed platforms like Render/Railway. 
+
+---
+
+## 9. GoHighLevel (GHL) Integration Strategy 
+*(Note: This supersedes the previously scoped custom-built Automation & Workflow Module)*
+
+By leveraging GoHighLevel API v2 and Webhooks, we will offload all CRM and messaging responsibilities to GHL. This keeps the custom dashboard lightweight and focused purely on fleet management logic.
+
+*   **Native Meta WhatsApp & SMS Routing:** All client communications (e.g., payment reminders, geo-fence alerts, speeding warnings) will be triggered via webhooks sent from the NestJS backend to GoHighLevel Workflows. GHL will handle the actual sending using its SMS gateways and official Meta WhatsApp integration.
+*   **Bi-Directional CRM Sync:** When a client is added or updated in the custom dashboard, their corresponding GHL Contact profile is automatically tagged and updated via the GHL API.
+*   **Automated Pipeline Management:** The custom application will calculate when a client reaches the final 90 days of their rent-to-own contract. It will then automatically push them into a dedicated GHL Opportunity Pipeline. The sales team will manage the final handover and balloon payments visually within GoHighLevel.
