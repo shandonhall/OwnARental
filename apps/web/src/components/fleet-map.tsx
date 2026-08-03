@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -28,16 +28,42 @@ function pinIcon(status: string, immobilized: boolean, selected: boolean) {
   });
 }
 
-function FitBounds({ points }: { points: Array<[number, number]> }) {
+function fitMapToPoints(
+  map: L.Map,
+  points: Array<[number, number]>,
+) {
+  if (points.length === 0) return;
+  if (points.length === 1) {
+    map.setView(points[0], 12);
+    return;
+  }
+  map.fitBounds(points, { padding: [40, 40] });
+}
+
+/** Fit all pins once on load, and again when resetViewKey increments. */
+function FitBounds({
+  points,
+  resetViewKey,
+}: {
+  points: Array<[number, number]>;
+  resetViewKey: number;
+}) {
   const map = useMap();
+  const pointsRef = useRef(points);
+  pointsRef.current = points;
+  const didInitialFit = useRef(false);
+
   useEffect(() => {
-    if (points.length === 0) return;
-    if (points.length === 1) {
-      map.setView(points[0], 12);
-      return;
-    }
-    map.fitBounds(points, { padding: [40, 40] });
+    if (didInitialFit.current || points.length === 0) return;
+    didInitialFit.current = true;
+    fitMapToPoints(map, points);
   }, [map, points]);
+
+  useEffect(() => {
+    if (resetViewKey === 0) return;
+    fitMapToPoints(map, pointsRef.current);
+  }, [map, resetViewKey]);
+
   return null;
 }
 
@@ -47,23 +73,35 @@ function FocusSelected({
   asset: MapAsset | null;
 }) {
   const map = useMap();
+  const targetId = asset?.id ?? null;
+  const lat = asset?.lat ?? null;
+  const lng = asset?.lng ?? null;
+
   useEffect(() => {
-    if (!asset || asset.lat == null || asset.lng == null) return;
-    map.flyTo([asset.lat, asset.lng], Math.max(map.getZoom(), 13), {
+    if (targetId == null || lat == null || lng == null) return;
+    map.flyTo([lat, lng], Math.max(map.getZoom(), 13), {
       duration: 0.55,
     });
-  }, [asset, map]);
+  }, [map, targetId, lat, lng]);
   return null;
 }
 
 export function FleetMap({
   assets,
   selectedId,
+  zoomToId,
+  resetViewKey = 0,
   onSelect,
+  onHover,
 }: {
   assets: MapAsset[];
   selectedId?: string | null;
-  onSelect?: (id: string | null) => void;
+  /** Only fly/zoom when this id is set (e.g. table row click). */
+  zoomToId?: string | null;
+  /** Increment to fit all pins again (Reset view). */
+  resetViewKey?: number;
+  onSelect?: (id: string) => void;
+  onHover?: (id: string | null) => void;
 }) {
   const points = assets
     .filter((asset) => asset.lat != null && asset.lng != null)
@@ -72,8 +110,8 @@ export function FleetMap({
   const center: [number, number] =
     points[0] ?? [-26.1433, 28.0497]; // Randburg default
 
-  const selected =
-    assets.find((asset) => asset.id === selectedId) ?? null;
+  const zoomTarget =
+    assets.find((asset) => asset.id === zoomToId) ?? null;
 
   return (
     <MapContainer
@@ -86,8 +124,8 @@ export function FleetMap({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitBounds points={points} />
-      <FocusSelected asset={selected} />
+      <FitBounds points={points} resetViewKey={resetViewKey} />
+      <FocusSelected asset={zoomTarget} />
       {assets.map((asset) => {
         if (asset.lat == null || asset.lng == null) return null;
         const selectedPin = asset.id === selectedId;
@@ -98,6 +136,8 @@ export function FleetMap({
             icon={pinIcon(asset.status, asset.isImmobilized, selectedPin)}
             eventHandlers={{
               click: () => onSelect?.(asset.id),
+              mouseover: () => onHover?.(asset.id),
+              mouseout: () => onHover?.(null),
             }}
             zIndexOffset={selectedPin ? 1000 : 0}
           >

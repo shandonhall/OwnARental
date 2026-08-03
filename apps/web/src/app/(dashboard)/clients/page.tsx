@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { useTableSort } from '@/lib/table-sort';
 
 function ficaClass(status: string) {
   switch (status) {
@@ -18,64 +19,31 @@ function ficaClass(status: string) {
   }
 }
 
-type SortKey = 'name' | 'idNumber' | 'phone' | 'fica' | 'city' | 'vehicle';
-
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('name');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const query = useQuery({
     queryKey: ['clients', search],
     queryFn: () => api.getClients(search || undefined),
   });
 
-  const rows = useMemo(() => {
-    const list = [...(query.data ?? [])];
-    const dir = sortDir === 'asc' ? 1 : -1;
-    list.sort((a, b) => {
-      const av =
-        sortKey === 'name'
-          ? `${a.lastName} ${a.firstName}`
-          : sortKey === 'idNumber'
-            ? a.idNumber
-            : sortKey === 'phone'
-              ? a.phone
-              : sortKey === 'fica'
-                ? a.ficaStatus
-                : sortKey === 'city'
-                  ? a.city
-                  : a.contracts[0]?.vehicle?.registration ?? '';
-      const bv =
-        sortKey === 'name'
-          ? `${b.lastName} ${b.firstName}`
-          : sortKey === 'idNumber'
-            ? b.idNumber
-            : sortKey === 'phone'
-              ? b.phone
-              : sortKey === 'fica'
-                ? b.ficaStatus
-                : sortKey === 'city'
-                  ? b.city
-                  : b.contracts[0]?.vehicle?.registration ?? '';
-      return String(av).localeCompare(String(bv)) * dir;
-    });
-    return list;
-  }, [query.data, sortDir, sortKey]);
+  const rows = useMemo(() => query.data ?? [], [query.data]);
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
-  }
+  const accessors = useMemo(
+    () => ({
+      name: (c: (typeof rows)[number]) => `${c.lastName} ${c.firstName}`,
+      idNumber: (c: (typeof rows)[number]) => c.idNumber,
+      phone: (c: (typeof rows)[number]) => c.phone,
+      fica: (c: (typeof rows)[number]) => c.ficaStatus,
+      city: (c: (typeof rows)[number]) => c.city,
+      province: (c: (typeof rows)[number]) => c.province ?? '',
+      vehicle: (c: (typeof rows)[number]) =>
+        c.contracts[0]?.vehicle?.registration ?? '',
+    }),
+    [],
+  );
 
-  function label(key: SortKey, text: string) {
-    if (sortKey !== key) return text;
-    return `${text} ${sortDir === 'asc' ? '↑' : '↓'}`;
-  }
+  const { sorted, SortTh } = useTableSort(rows, accessors, 'name');
 
   return (
     <section>
@@ -84,14 +52,15 @@ export default function ClientsPage() {
           <h1
             className="text-3xl text-navy"
             style={{
-              fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+              fontFamily:
+                'var(--font-display), ui-sans-serif, system-ui, sans-serif',
             }}
           >
             Clients
           </h1>
           <p className="mt-1 text-brand-grey">
-            Renter profiles, FICA status, and linked vehicles — sortable by
-            column.
+            Renter profiles, FICA status, and linked vehicles — click any
+            column to sort.
           </p>
         </div>
         <Link
@@ -115,56 +84,33 @@ export default function ClientsPage() {
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 text-brand-grey dark:border-slate-700">
             <tr>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('name')}>
-                  {label('name', 'Client')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('idNumber')}>
-                  {label('idNumber', 'ID number')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('phone')}>
-                  {label('phone', 'Phone')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('fica')}>
-                  {label('fica', 'FICA')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('city')}>
-                  {label('city', 'City')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('vehicle')}>
-                  {label('vehicle', 'Vehicle')}
-                </button>
-              </th>
+              <SortTh column="name">Client</SortTh>
+              <SortTh column="idNumber">ID number</SortTh>
+              <SortTh column="phone">Phone</SortTh>
+              <SortTh column="fica">FICA</SortTh>
+              <SortTh column="city">City</SortTh>
+              <SortTh column="province">Province</SortTh>
+              <SortTh column="vehicle">Vehicle</SortTh>
             </tr>
           </thead>
           <tbody>
             {query.isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-brand-grey">
+                <td colSpan={7} className="px-4 py-8 text-brand-grey">
                   Loading clients…
                 </td>
               </tr>
             )}
             {query.isError && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-danger">
+                <td colSpan={7} className="px-4 py-8 text-danger">
                   Could not load clients. Is the API running on port 3001?
                 </td>
               </tr>
             )}
-            {!query.isLoading && !query.isError && rows.length === 0 && (
+            {!query.isLoading && !query.isError && sorted.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-brand-grey">
+                <td colSpan={7} className="px-4 py-8 text-brand-grey">
                   No clients yet.{' '}
                   <Link
                     href="/clients/new"
@@ -176,7 +122,7 @@ export default function ClientsPage() {
                 </td>
               </tr>
             )}
-            {rows.map((client) => {
+            {sorted.map((client) => {
               const vehicle = client.contracts[0]?.vehicle;
               return (
                 <tr
@@ -202,6 +148,9 @@ export default function ClientsPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {client.city}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                    {client.province ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {vehicle

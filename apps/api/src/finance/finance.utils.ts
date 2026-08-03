@@ -55,6 +55,44 @@ export function sumPaidIncome(
   }, new Prisma.Decimal(0));
 }
 
+/** Unpaid rental / deposit / balloon lines — money still owed by clients. */
+export function sumOutstandingIncome(
+  entries: Array<{
+    type: LedgerEntryType;
+    status: LedgerEntryStatus;
+    amount: Prisma.Decimal | number | string;
+  }>,
+): Prisma.Decimal {
+  return entries.reduce((total, entry) => {
+    if (!INCOME_TYPES.includes(entry.type)) return total;
+    if (entry.status !== LedgerEntryStatus.PENDING) return total;
+    return total.add(new Prisma.Decimal(entry.amount));
+  }, new Prisma.Decimal(0));
+}
+
+/** Paid + pending income (expected receipts for the scope). */
+export function sumExpectedIncome(
+  entries: Array<{
+    type: LedgerEntryType;
+    status: LedgerEntryStatus;
+    amount: Prisma.Decimal | number | string;
+  }>,
+): Prisma.Decimal {
+  return sumPaidIncome(entries).add(sumOutstandingIncome(entries));
+}
+
+export function isIncomeLedgerType(type: LedgerEntryType): boolean {
+  return INCOME_TYPES.includes(type);
+}
+
+const RECOGNIZED_COST_STATUSES: LedgerEntryStatus[] = [
+  LedgerEntryStatus.PENDING,
+  LedgerEntryStatus.ON_TIME,
+  LedgerEntryStatus.EARLY,
+  LedgerEntryStatus.LATE,
+];
+
+/** Paid cost lines only (settled fees / fines / maintenance). */
 export function sumPaidCosts(
   entries: Array<{
     type: LedgerEntryType;
@@ -67,6 +105,28 @@ export function sumPaidCosts(
     if (!PAID_STATUSES.includes(entry.status)) return total;
     return total.add(new Prisma.Decimal(entry.amount));
   }, new Prisma.Decimal(0));
+}
+
+/**
+ * Operating costs for P&L views — includes pending fines/fees that have
+ * been incurred, not only settled payments. Excludes VOID / FAILED.
+ */
+export function sumRecognizedCosts(
+  entries: Array<{
+    type: LedgerEntryType;
+    status: LedgerEntryStatus;
+    amount: Prisma.Decimal | number | string;
+  }>,
+): Prisma.Decimal {
+  return entries.reduce((total, entry) => {
+    if (!COST_TYPES.includes(entry.type)) return total;
+    if (!RECOGNIZED_COST_STATUSES.includes(entry.status)) return total;
+    return total.add(new Prisma.Decimal(entry.amount));
+  }, new Prisma.Decimal(0));
+}
+
+export function isCostLedgerType(type: LedgerEntryType): boolean {
+  return COST_TYPES.includes(type);
 }
 
 export function termProgress(input: {
@@ -119,8 +179,10 @@ export function withFinanceSummary<T extends {
     type: LedgerEntryType;
     status: LedgerEntryStatus;
     amount: Prisma.Decimal;
+    dueDate?: Date | null;
+    paidAt?: Date | null;
   }>;
-}>(contract: T) {
+}>(contract: T, now = new Date()) {
   const expectedTotal = expectedContractTotal(contract);
   const totalPaid = contract.ledger
     ? sumPaidIncome(contract.ledger)
@@ -129,13 +191,44 @@ export function withFinanceSummary<T extends {
     expectedTotal.sub(totalPaid),
     new Prisma.Decimal(0),
   );
-  const progress = termProgress(contract);
+  const progress = termProgress({ ...contract, now });
+
+  const balloon = new Prisma.Decimal(contract.balloonAmount ?? 0);
+  const balloonPaid = Boolean(
+    contract.ledger?.some(
+      (entry) =>
+        entry.type === LedgerEntryType.BALLOON_PAYMENT &&
+        PAID_STATUSES.includes(entry.status),
+    ),
+  );
+  const balloonOutstanding = balloonPaid
+    ? new Prisma.Decimal(0)
+    : Prisma.Decimal.min(balloon, outstandingBalance);
+  const outstandingExBalloon = Prisma.Decimal.max(
+    outstandingBalance.sub(balloonOutstanding),
+    new Prisma.Decimal(0),
+  );
+
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const monthOwed = (contract.ledger ?? []).reduce((total, entry) => {
+    if (entry.type !== LedgerEntryType.RENTAL_PAYMENT) return total;
+    if (entry.status !== LedgerEntryStatus.PENDING) return total;
+    const due = entry.dueDate ?? entry.paidAt;
+    // Due this month or already overdue (still unpaid monthly rent)
+    if (due && due > monthEnd) return total;
+    return total.add(new Prisma.Decimal(entry.amount));
+  }, new Prisma.Decimal(0));
 
   return {
     ...contract,
     expectedTotal: expectedTotal.toFixed(2),
     totalPaid: totalPaid.toFixed(2),
     outstandingBalance: outstandingBalance.toFixed(2),
+    outstandingExBalloon: outstandingExBalloon.toFixed(2),
+    balloonOutstanding: balloonOutstanding.toFixed(2),
+    hasBalloon: balloon.gt(0),
+    balloonPaid,
+    monthOwed: monthOwed.toFixed(2),
     termProgress: progress,
   };
 }

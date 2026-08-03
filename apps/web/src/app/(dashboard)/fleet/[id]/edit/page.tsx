@@ -96,7 +96,7 @@ export default function EditVehiclePage() {
   }
 
   if (query.isLoading) {
-    return <p className="text-brand-grey">Loading vehicle…</p>;
+    return <p className="text-slate-600 dark:text-slate-300">Loading vehicle…</p>;
   }
 
   if (query.isError || !query.data) {
@@ -120,7 +120,7 @@ export default function EditVehiclePage() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2">
+        <div className="grid gap-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 md:grid-cols-2">
           <Field label="Make">
             <TextInput name="make" required defaultValue={vehicle.make} />
           </Field>
@@ -189,8 +189,8 @@ export default function EditVehiclePage() {
           </Field>
         </div>
 
-        <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2">
-          <h2 className="md:col-span-2 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="grid gap-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 md:grid-cols-2">
+          <h2 className="md:col-span-2 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Warranty & service
           </h2>
           <Field label="Warranty provider">

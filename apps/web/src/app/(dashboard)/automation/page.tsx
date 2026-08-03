@@ -51,7 +51,7 @@ export default function AutomationPage() {
           >
             Automation
           </h1>
-          <p className="mt-1 max-w-2xl text-brand-grey">
+          <p className="mt-1 max-w-2xl text-slate-600 dark:text-slate-300">
             GoHighLevel routes WhatsApp/SMS for payment reminders, rule
             breaches, low driver scores, and end-of-term opportunities. Remote
             immobilization still requires Super Admin in the fleet UI.
@@ -83,37 +83,37 @@ export default function AutomationPage() {
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Provider
           </p>
           <p className="mt-2 text-2xl text-navy">{data?.provider ?? '—'}</p>
-          <p className="mt-1 text-xs text-brand-grey">{data?.message}</p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{data?.message}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Auto-comms
           </p>
           <p className="mt-2 text-2xl text-navy">
             {data?.autoEnabled ? 'On' : 'Off'}
           </p>
-          <p className="mt-1 text-xs text-brand-grey">
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
             {intervalMins != null ? `Every ${intervalMins} min` : '—'}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Webhooks
           </p>
           <p className="mt-2 text-2xl text-navy">
             {data?.webhookConfigured ? 'Configured' : 'Default / mock'}
           </p>
-          <p className="mt-1 text-xs text-brand-grey">
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
             Last event {data?.lastEvent ?? 'none'}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Last run
           </p>
           <p className="mt-2 text-lg text-navy">
@@ -129,8 +129,8 @@ export default function AutomationPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm uppercase tracking-wide text-brand-grey">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-surface p-5">
+        <h2 className="text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
           Workflow events
         </h2>
         <ul className="mt-3 grid gap-2 text-sm text-navy sm:grid-cols-2">

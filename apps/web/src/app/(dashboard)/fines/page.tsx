@@ -2,15 +2,14 @@
 
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { api, type FineImportRow } from '@/lib/api';
 import { PrimaryButton, SecondaryButton } from '@/components/form';
+import { useTableSort } from '@/lib/table-sort';
+import { formatMoney } from '@/lib/format-money';
 
 function money(value: string) {
-  return `R ${Number(value).toLocaleString('en-ZA', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatMoney(value);
 }
 
 export default function FinesPage() {
@@ -55,7 +54,25 @@ export default function FinesPage() {
     },
   });
 
-  const rows: FineImportRow[] = fines.data ?? [];
+  const rows: FineImportRow[] = useMemo(
+    () => fines.data ?? [],
+    [fines.data],
+  );
+
+  const accessors = useMemo(
+    () => ({
+      notice: (r: FineImportRow) => r.externalId,
+      source: (r: FineImportRow) => r.source,
+      vehicle: (r: FineImportRow) => r.registration,
+      client: (r: FineImportRow) =>
+        r.client ? `${r.client.lastName} ${r.client.firstName}` : '',
+      amount: (r: FineImportRow) => Number(r.amount),
+      status: (r: FineImportRow) => r.status,
+    }),
+    [],
+  );
+
+  const { sorted, SortTh } = useTableSort(rows, accessors, 'status');
 
   return (
     <section className="space-y-6">
@@ -67,7 +84,7 @@ export default function FinesPage() {
           >
             Fines & tolls
           </h1>
-          <p className="mt-1 max-w-2xl text-brand-grey">
+          <p className="mt-1 max-w-2xl text-slate-600 dark:text-slate-300">
             Import AARTO/SANRAL notices by registration, match active
             contracts, and auto-post fine + admin handling fee to the ledger.
           </p>
@@ -95,28 +112,28 @@ export default function FinesPage() {
       {message ? <p className="text-sm text-brand">{message}</p> : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Provider
           </p>
           <p className="mt-2 text-2xl text-navy">
             {status.data?.provider ?? '—'}
           </p>
-          <p className="mt-1 text-xs text-brand-grey">{status.data?.message}</p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{status.data?.message}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Admin fee
           </p>
           <p className="mt-2 text-2xl text-navy">
             R {status.data?.adminFeeZar ?? 150}
           </p>
-          <p className="mt-1 text-xs text-brand-grey">
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
             Added per invoiced notice
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Last sync
           </p>
           <p className="mt-2 text-lg text-navy">
@@ -127,31 +144,31 @@ export default function FinesPage() {
           {status.data?.lastError ? (
             <p className="mt-1 text-xs text-danger">{status.data.lastError}</p>
           ) : (
-            <p className="mt-1 text-xs text-brand-grey">
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
               Imported {status.data?.lastImported ?? 0} last run
             </p>
           )}
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-surface">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-brand-grey">
+          <thead className="border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
             <tr>
-              <th className="px-4 py-3 font-medium">Notice</th>
-              <th className="px-4 py-3 font-medium">Vehicle</th>
-              <th className="px-4 py-3 font-medium">Client</th>
-              <th className="px-4 py-3 font-medium">Amount</th>
-              <th className="px-4 py-3 font-medium">Status</th>
+              <SortTh column="notice">Notice</SortTh>
+              <SortTh column="vehicle">Vehicle</SortTh>
+              <SortTh column="client">Client</SortTh>
+              <SortTh column="amount">Amount</SortTh>
+              <SortTh column="status">Status</SortTh>
               <th className="px-4 py-3 font-medium">Action</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b border-slate-100">
+            {sorted.map((row) => (
+              <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/40">
                 <td className="px-4 py-3">
                   <p className="font-mono text-xs text-navy">{row.externalId}</p>
-                  <p className="text-xs text-brand-grey">
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
                     {row.source}
                     {row.description ? ` · ${row.description}` : ''}
                   </p>
@@ -166,11 +183,11 @@ export default function FinesPage() {
                       {row.client.firstName} {row.client.lastName}
                     </Link>
                   ) : (
-                    <span className="text-brand-grey">Unmatched</span>
+                    <span className="text-slate-600 dark:text-slate-300">Unmatched</span>
                   )}
                 </td>
                 <td className="px-4 py-3">{money(row.amount)}</td>
-                <td className="px-4 py-3 text-xs uppercase tracking-wide text-brand-grey">
+                <td className="px-4 py-3 text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
                   {row.status}
                 </td>
                 <td className="px-4 py-3">
@@ -199,7 +216,7 @@ export default function FinesPage() {
             ))}
             {!fines.isLoading && rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-brand-grey">
+                <td colSpan={6} className="px-4 py-8 text-slate-600 dark:text-slate-300">
                   No imported fines yet — run Sync fines to pull notices.
                 </td>
               </tr>

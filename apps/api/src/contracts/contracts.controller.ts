@@ -29,8 +29,19 @@ export class ContractsController {
   constructor(private readonly contractsService: ContractsService) {}
 
   @Get('profitability')
-  profitability() {
-    return this.contractsService.profitability();
+  profitability(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.contractsService.profitability({ from, to });
+  }
+
+  @Get('profitability/trend')
+  profitabilityTrend(@Query('months') months?: string) {
+    const parsed = months ? Number(months) : 6;
+    return this.contractsService.profitabilityTrend(
+      Number.isFinite(parsed) ? parsed : 6,
+    );
   }
 
   @Get('fines')

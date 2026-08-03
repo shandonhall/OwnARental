@@ -3,6 +3,7 @@ import type {
   CarTrackSnapshot,
   DriverScoreBreakdown,
   RuleBreach,
+  SnapshotContext,
 } from './cartrack.types';
 
 /**
@@ -26,7 +27,7 @@ export class LiveCarTrackProvider implements CarTrackProvider {
     };
   }
 
-  async fetchSnapshot(deviceId: string): Promise<CarTrackSnapshot> {
+  async fetchSnapshot(deviceId: string, _context?: SnapshotContext): Promise<CarTrackSnapshot> {
     const response = await fetch(
       `${this.baseUrl.replace(/\/$/, '')}/devices/${encodeURIComponent(deviceId)}/telemetry`,
       { headers: this.headers() },

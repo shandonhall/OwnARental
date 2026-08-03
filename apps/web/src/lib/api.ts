@@ -20,7 +20,31 @@ export function isAdminRole(role: Role | string) {
 export function roleLabel(role: Role | string) {
   if (role === 'SUPER_ADMIN') return 'Super Admin';
   if (role === 'ADMIN') return 'Admin';
+  if (role === 'FLEET_MANAGER') return 'Fleet Manager';
   return 'User';
+}
+
+export type TaskCategory =
+  | 'collections'
+  | 'driver'
+  | 'end_of_term'
+  | 'fleet';
+
+export function taskCategoryLabel(category: TaskCategory) {
+  if (category === 'collections') return 'Collections & payments';
+  if (category === 'driver') return 'Driver behaviour';
+  if (category === 'end_of_term') return 'End of term';
+  return 'Fleet & service';
+}
+
+export function taskCategoryHint(category: TaskCategory) {
+  if (category === 'collections')
+    return 'Arrears, late payments, and outstanding fines';
+  if (category === 'driver')
+    return 'Telematics rule breaches and behaviour alerts';
+  if (category === 'end_of_term')
+    return 'Ownership / return outreach before term ends';
+  return 'Service due and fleet ops follow-ups';
 }
 
 export type VehicleStatus =
@@ -257,6 +281,11 @@ export type Contract = {
   monthlyKmLimit: number | null;
   totalPaid: string;
   outstandingBalance: string;
+  outstandingExBalloon?: string;
+  balloonOutstanding?: string;
+  hasBalloon?: boolean;
+  balloonPaid?: boolean;
+  monthOwed?: string;
   expectedTotal: string;
   notes: string | null;
   ghlOpportunityId?: string | null;
@@ -321,9 +350,33 @@ export type ProfitabilityRow = {
   maintenanceAndFees: string;
   totalCost: string;
   rentalIncome: string;
+  outstandingIncome: string;
+  expectedIncome: string;
   profit: string;
-  roiPercent: string;
+  forecastProfit?: string;
+  roiPercent: string | null;
   contractCount: number;
+  mode?: 'lifetime' | 'period';
+  from?: string | null;
+  to?: string | null;
+};
+
+export type ProfitabilityTrendPoint = {
+  key: string;
+  label: string;
+  year: number;
+  month: number;
+  received: string;
+  costs: string;
+  expected: string;
+  owed: string;
+  profit: string;
+  forecastProfit: string;
+};
+
+export type ProfitabilityTrendResponse = {
+  months: number;
+  series: ProfitabilityTrendPoint[];
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -362,6 +415,9 @@ export const api = {
     const qs = query.toString();
     return apiFetch<Vehicle[]>(`/vehicles${qs ? `?${qs}` : ''}`);
   },
+  /** Fleet page alias — same path as getVehicles (`GET /api/vehicles`). */
+  getFleet: (params?: { status?: VehicleStatus; search?: string }) =>
+    api.getVehicles(params),
   getVehicle: (id: string) => apiFetch<Vehicle>(`/vehicles/${id}`),
   createVehicle: (data: CreateVehicleInput) =>
     apiFetch<Vehicle>('/vehicles', {
@@ -421,8 +477,19 @@ export const api = {
     }),
   deleteContract: (id: string) =>
     apiFetch<Contract>(`/contracts/${id}`, { method: 'DELETE' }),
-  getProfitability: () =>
-    apiFetch<ProfitabilityRow[]>('/contracts/profitability'),
+  getProfitability: (params?: { from?: string; to?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const qs = query.toString();
+    return apiFetch<ProfitabilityRow[]>(
+      `/contracts/profitability${qs ? `?${qs}` : ''}`,
+    );
+  },
+  getProfitabilityTrend: (months = 6) =>
+    apiFetch<ProfitabilityTrendResponse>(
+      `/contracts/profitability/trend?months=${months}`,
+    ),
 
   createLedgerEntry: (contractId: string, data: CreateLedgerInput) =>
     apiFetch<Contract>(`/contracts/${contractId}/ledger`, {
@@ -701,7 +768,8 @@ export type DashboardAlert = {
     | 'LATE_PAYMENT'
     | 'PENDING_FINE'
     | 'SERVICE_DUE'
-    | 'RULE_BREACH';
+    | 'RULE_BREACH'
+    | 'END_OF_TERM';
   severity: 'high' | 'medium';
   title: string;
   detail: string;
@@ -716,6 +784,45 @@ export type DashboardAlert = {
     model: string;
   } | null;
 };
+
+export function alertCategory(
+  kind: DashboardAlert['kind'],
+): 'internal' | 'driver' {
+  return kind === 'RULE_BREACH' ? 'driver' : 'internal';
+}
+
+export type NotificationCategory =
+  | 'payments'
+  | 'service'
+  | 'driver'
+  | 'end_of_term'
+  | 'other';
+
+export function notificationCategory(kind: string): NotificationCategory {
+  switch (kind) {
+    case 'MISSED_PAYMENT':
+    case 'ARREARS':
+    case 'LATE_PAYMENT':
+    case 'PENDING_FINE':
+      return 'payments';
+    case 'SERVICE_DUE':
+      return 'service';
+    case 'RULE_BREACH':
+      return 'driver';
+    case 'END_OF_TERM':
+      return 'end_of_term';
+    default:
+      return 'other';
+  }
+}
+
+export function notificationCategoryLabel(category: NotificationCategory) {
+  if (category === 'payments') return 'Payments & fines';
+  if (category === 'service') return 'Service';
+  if (category === 'driver') return 'Driver behaviour';
+  if (category === 'end_of_term') return 'End of term';
+  return 'Other';
+}
 
 export type DashboardWin = {
   id: string;
@@ -734,8 +841,32 @@ export type DashboardWin = {
   } | null;
 };
 
+export type DashboardTask = {
+  id: string;
+  label: string;
+  severity: 'high' | 'medium';
+  contractId: string | null;
+  clientId: string | null;
+  kind: DashboardAlert['kind'] | 'END_OF_TERM';
+  category: TaskCategory;
+  assigneeRole: Role;
+  assignee: {
+    userId: string | null;
+    fullName: string;
+    role: Role;
+    unassigned: boolean;
+  };
+  advancePipelineTo?: string | null;
+};
+
 export type DashboardOverview = {
   generatedAt: string;
+  viewer?: {
+    id: string;
+    fullName: string;
+    role: Role;
+    canSeeAllTasks: boolean;
+  };
   summary: {
     attentionCount: number;
     winsCount: number;
@@ -814,14 +945,8 @@ export type DashboardOverview = {
     }>;
     pendingFineCount: number;
   };
-  myTasks?: Array<{
-    id: string;
-    label: string;
-    severity: 'high' | 'medium';
-    contractId: string;
-    clientId: string;
-    kind: DashboardAlert['kind'];
-  }>;
+  myTasks?: DashboardTask[];
+  tasksByCategory?: Record<TaskCategory, DashboardTask[]>;
 };
 
 export type MapAsset = {

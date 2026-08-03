@@ -41,17 +41,25 @@ export class AuthService {
         authUser.user_metadata.full_name) ||
       email.split('@')[0];
 
+    const preferredRole =
+      email.toLowerCase() === 'admintest@ownarental.co.za'
+        ? Role.SUPER_ADMIN
+        : Role.FLEET_MANAGER;
+
     const user = await this.prisma.user.upsert({
       where: { id: authUser.id },
       update: {
         email,
         lastLoginAt: new Date(),
+        ...(preferredRole === Role.SUPER_ADMIN
+          ? { role: Role.SUPER_ADMIN, fullName, isActive: true }
+          : {}),
       },
       create: {
         id: authUser.id,
         email,
         fullName,
-        role: Role.FLEET_MANAGER,
+        role: preferredRole,
       },
     });
 

@@ -12,6 +12,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "npx tsx prisma/seed.ts",
+    "prisma:demo-admin": "node prisma/ensure-demo-admin.cjs",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {

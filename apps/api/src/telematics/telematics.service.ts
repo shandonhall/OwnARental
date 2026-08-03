@@ -182,7 +182,11 @@ export class TelematicsService {
       });
     }
 
-    const snapshot = await this.provider.fetchSnapshot(deviceId);
+    const snapshot = await this.provider.fetchSnapshot(deviceId, {
+      currentOdometerKm: vehicle.currentOdometerKm,
+      averageDailyKm:
+        vehicle.averageDailyKm != null ? Number(vehicle.averageDailyKm) : null,
+    });
     const averageDailyKm = estimateAverageDailyKm({
       previousOdometer: vehicle.currentOdometerKm,
       previousSyncedAt: vehicle.lastTelematicsSyncAt,

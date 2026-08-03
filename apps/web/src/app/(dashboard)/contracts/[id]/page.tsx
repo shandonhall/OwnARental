@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -18,12 +18,11 @@ import {
   LedgerEntryStatus,
   LedgerEntryType,
 } from '@/lib/api';
+import { useTableSort } from '@/lib/table-sort';
+import { formatMoney, moneyCellClass } from '@/lib/format-money';
 
 function money(value: string | number) {
-  return `R ${Number(value).toLocaleString('en-ZA', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatMoney(value);
 }
 
 function ledgerStatusLabel(status: string) {
@@ -56,7 +55,7 @@ function ledgerStatusClass(status: string) {
     case 'PENDING':
       return 'text-warning';
     case 'VOID':
-      return 'text-brand-grey';
+      return 'text-slate-600 dark:text-slate-300';
     default:
       return 'text-navy';
   }
@@ -73,6 +72,28 @@ export default function ContractDetailPage() {
     queryFn: () => api.getContract(params.id),
     enabled: Boolean(params.id),
   });
+
+  const ledgerRows = useMemo(
+    () => query.data?.ledger ?? [],
+    [query.data?.ledger],
+  );
+
+  const ledgerAccessors = useMemo(
+    () => ({
+      type: (e: (typeof ledgerRows)[number]) => e.type,
+      status: (e: (typeof ledgerRows)[number]) => e.status,
+      amount: (e: (typeof ledgerRows)[number]) => Number(e.amount),
+      paid: (e: (typeof ledgerRows)[number]) =>
+        e.paidAt ? new Date(e.paidAt).getTime() : 0,
+    }),
+    [],
+  );
+
+  const { sorted: sortedLedger, SortTh: LedgerSortTh } = useTableSort(
+    ledgerRows,
+    ledgerAccessors,
+    'type',
+  );
 
   async function onAddPayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -101,7 +122,7 @@ export default function ContractDetailPage() {
   }
 
   if (query.isLoading) {
-    return <p className="text-brand-grey">Loading contract…</p>;
+    return <p className="text-slate-600 dark:text-slate-300">Loading contract…</p>;
   }
 
   if (query.isError || !query.data) {
@@ -120,84 +141,135 @@ export default function ContractDetailPage() {
         <h1 className="mt-2 text-3xl text-navy">
           {contract.client.firstName} {contract.client.lastName}
         </h1>
-        <p className="mt-1 text-brand-grey">
+        <p className="mt-1 text-slate-600 dark:text-slate-300">
           {contract.vehicle.year} {contract.vehicle.make}{' '}
           {contract.vehicle.model} · {contract.vehicle.registration}
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
-            Outstanding
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            Month owed
+          </p>
+          <p
+            className={`mt-2 text-2xl ${
+              Number(contract.monthOwed ?? 0) > 0 ? 'text-danger' : 'text-navy'
+            }`}
+          >
+            {Number(contract.monthOwed ?? 0) > 0
+              ? money(contract.monthOwed!)
+              : '—'}
+          </p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+            Unpaid rentals due this month or overdue
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            Outstanding (ex balloon)
+          </p>
+          <p className="mt-2 text-2xl text-navy">
+            {money(
+              contract.outstandingExBalloon ?? contract.outstandingBalance,
+            )}
+          </p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+            Rentals + deposit remaining
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            {contract.hasBalloon ? 'Outstanding (incl. balloon)' : 'Outstanding'}
           </p>
           <p className="mt-2 text-2xl text-navy">
             {money(contract.outstandingBalance)}
           </p>
-          <p className="mt-1 text-xs text-brand-grey">
-            Expected {money(contract.expectedTotal)} · Paid{' '}
-            {money(contract.totalPaid)}
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+            {contract.hasBalloon
+              ? Number(contract.balloonOutstanding ?? 0) > 0
+                ? `Balloon still due ${money(contract.balloonOutstanding!)}`
+                : contract.balloonPaid
+                  ? 'Balloon paid'
+                  : `Balloon ${money(contract.balloonAmount ?? 0)}`
+              : `Expected ${money(contract.expectedTotal)} · Paid ${money(contract.totalPaid)}`}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Monthly rate
           </p>
           <p className="mt-2 text-2xl text-navy">
             {money(contract.monthlyRate)}
           </p>
-          <p className="mt-1 text-xs text-brand-grey">
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
             {contract.planType.replace('_', ' ')} · {contract.status}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
-            Term progress
-          </p>
-          <p className="mt-2 text-2xl text-navy">{progress.percent}%</p>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-brand"
-              style={{ width: `${progress.percent}%` }}
-            />
-          </div>
-          <p className="mt-2 text-xs text-brand-grey">
-            Month {progress.monthsElapsed}/{progress.termMonths} ·{' '}
-            {progress.daysRemaining} days left
-            {progress.isFinalNinetyDays ? ' · Final 90 days' : ''}
-          </p>
-          {contract.ghlOpportunityId ? (
-            <p className="mt-2 font-mono text-[11px] text-brand-grey">
-              GHL opportunity · {contract.ghlOpportunityId}
-            </p>
-          ) : null}
+      </div>
+
+      <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+        <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
+          Term progress
+        </p>
+        <p className="mt-2 text-2xl text-navy">{progress.percent}%</p>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div
+            className="h-full rounded-full bg-brand"
+            style={{ width: `${progress.percent}%` }}
+          />
         </div>
+        <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+          Month {progress.monthsElapsed}/{progress.termMonths} ·{' '}
+          {progress.daysRemaining} days left
+          {progress.isFinalNinetyDays ? ' · Final 90 days' : ''}
+        </p>
+        {contract.ghlOpportunityId ? (
+          <p className="mt-2 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+            GHL opportunity · {contract.ghlOpportunityId}
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Financial ledger
           </h2>
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="text-brand-grey">
+              <thead className="text-slate-600 dark:text-slate-300">
                 <tr>
-                  <th className="py-2 pr-3 font-medium">Type</th>
-                  <th className="py-2 pr-3 font-medium">Status</th>
-                  <th className="py-2 pr-3 font-medium">Amount</th>
-                  <th className="py-2 font-medium">Paid</th>
+                  <LedgerSortTh column="type" className="py-2 pr-3 font-medium">
+                    Type
+                  </LedgerSortTh>
+                  <LedgerSortTh
+                    column="status"
+                    className="py-2 pr-3 font-medium"
+                  >
+                    Status
+                  </LedgerSortTh>
+                  <LedgerSortTh
+                    column="amount"
+                    className="py-2 pr-3 text-right font-medium"
+                    align="right"
+                  >
+                    Amount
+                  </LedgerSortTh>
+                  <LedgerSortTh column="paid" className="py-2 font-medium">
+                    Paid
+                  </LedgerSortTh>
                 </tr>
               </thead>
               <tbody>
-                {contract.ledger.length === 0 && (
+                {sortedLedger.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-4 text-brand-grey">
+                    <td colSpan={4} className="py-4 text-slate-600 dark:text-slate-300">
                       No ledger entries yet.
                     </td>
                   </tr>
                 )}
-                {contract.ledger.map((entry) => (
+                {sortedLedger.map((entry) => (
                   <tr key={entry.id} className="border-t border-slate-100">
                     <td className="py-2.5 pr-3 text-navy">
                       {entry.type.replaceAll('_', ' ')}
@@ -207,10 +279,10 @@ export default function ContractDetailPage() {
                     >
                       {ledgerStatusLabel(entry.status)}
                     </td>
-                    <td className="py-2.5 pr-3 tabular-nums text-navy">
+                    <td className="py-2.5 pr-3 text-right tabular-nums whitespace-nowrap text-navy">
                       {money(entry.amount)}
                     </td>
-                    <td className="py-2.5 text-brand-grey">
+                    <td className="py-2.5 text-slate-600 dark:text-slate-300">
                       {entry.paidAt
                         ? new Date(entry.paidAt).toLocaleDateString()
                         : '—'}
@@ -224,9 +296,9 @@ export default function ContractDetailPage() {
 
         <form
           onSubmit={onAddPayment}
-          className="space-y-4 rounded-lg border border-slate-200 bg-white p-4"
+          className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4"
         >
-          <h2 className="text-sm uppercase tracking-wide text-brand-grey">
+          <h2 className="text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Record payment / fee
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">

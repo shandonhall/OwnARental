@@ -90,7 +90,7 @@ export default function EditClientPage() {
   }
 
   if (query.isLoading) {
-    return <p className="text-brand-grey">Loading client…</p>;
+    return <p className="text-slate-600 dark:text-slate-300">Loading client…</p>;
   }
 
   if (query.isError || !query.data) {
@@ -114,7 +114,7 @@ export default function EditClientPage() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2">
+        <div className="grid gap-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 md:grid-cols-2">
           <Field label="First name">
             <TextInput name="firstName" required defaultValue={client.firstName} />
           </Field>
@@ -172,8 +172,8 @@ export default function EditClientPage() {
           </Field>
         </div>
 
-        <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2">
-          <h2 className="md:col-span-2 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="grid gap-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 md:grid-cols-2">
+          <h2 className="md:col-span-2 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             FICA document URLs (Supabase Storage)
           </h2>
           <Field label="ID document URL">

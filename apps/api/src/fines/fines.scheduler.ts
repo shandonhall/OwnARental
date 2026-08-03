@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { FinesService } from './fines.service';
 
-const DEFAULT_INTERVAL_MS = 60 * 60 * 1000;
+const DEFAULT_INTERVAL_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class FinesSchedulerService implements OnModuleInit, OnModuleDestroy {

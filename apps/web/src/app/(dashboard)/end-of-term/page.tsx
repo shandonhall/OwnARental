@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, type Contract } from '@/lib/api';
+import { useTableSort } from '@/lib/table-sort';
 
 type StageKey =
   | 'WATCH'
@@ -21,6 +22,8 @@ const STAGES: Array<{ key: StageKey; label: string; hint: string }> = [
 ];
 
 type ViewMode = 'list' | 'kanban';
+
+type StagedRow = { contract: Contract; stage: StageKey };
 
 function daysRemaining(endDate: string) {
   return Math.ceil(
@@ -42,7 +45,6 @@ function stageFor(contract: Contract): StageKey | null {
 
 export default function EndOfTermPage() {
   const [view, setView] = useState<ViewMode>('kanban');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const query = useQuery({
     queryKey: ['contracts-eot'],
@@ -57,19 +59,28 @@ export default function EndOfTermPage() {
   });
 
   const staged = useMemo(() => {
-    const rows = (query.data ?? [])
+    return (query.data ?? [])
       .map((contract) => ({ contract, stage: stageFor(contract) }))
-      .filter((row): row is { contract: Contract; stage: StageKey } =>
-        Boolean(row.stage),
-      );
+      .filter((row): row is StagedRow => Boolean(row.stage));
+  }, [query.data]);
 
-    rows.sort((a, b) => {
-      const da = daysRemaining(a.contract.endDate);
-      const db = daysRemaining(b.contract.endDate);
-      return sortDir === 'asc' ? da - db : db - da;
-    });
-    return rows;
-  }, [query.data, sortDir]);
+  const accessors = useMemo(
+    () => ({
+      client: (row: StagedRow) =>
+        `${row.contract.client.lastName} ${row.contract.client.firstName}`,
+      vehicle: (row: StagedRow) => row.contract.vehicle.registration,
+      stage: (row: StagedRow) =>
+        STAGES.find((s) => s.key === row.stage)?.label ?? row.stage,
+      daysLeft: (row: StagedRow) =>
+        row.contract.status === 'COMPLETED'
+          ? Number.POSITIVE_INFINITY
+          : daysRemaining(row.contract.endDate),
+      outstanding: (row: StagedRow) => Number(row.contract.outstandingBalance),
+    }),
+    [],
+  );
+
+  const { sorted, SortTh } = useTableSort(staged, accessors, 'daysLeft');
 
   const byStage = useMemo(() => {
     const map: Record<StageKey, Contract[]> = {
@@ -79,18 +90,18 @@ export default function EndOfTermPage() {
       CLOSING: [],
       COMPLETED: [],
     };
-    for (const row of staged) {
+    for (const row of sorted) {
       map[row.stage].push(row.contract);
     }
     return map;
-  }, [staged]);
+  }, [sorted]);
 
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl text-navy">End of term</h1>
-          <p className="mt-1 text-brand-grey">
+          <p className="mt-1 text-slate-600 dark:text-slate-300">
             Renewal pipeline — list by days remaining, or kanban by stage.
             Stages are inferred from end date and notification flags until Own A
             Rental defines a full lifecycle.
@@ -110,7 +121,7 @@ export default function EndOfTermPage() {
               className={`border-b-2 px-3 py-2 text-sm ${
                 view === item.id
                   ? 'border-brand text-brand'
-                  : 'border-transparent text-brand-grey'
+                  : 'border-transparent text-slate-600 dark:text-slate-300'
               }`}
             >
               {item.label}
@@ -120,7 +131,7 @@ export default function EndOfTermPage() {
       </div>
 
       {query.isLoading ? (
-        <p className="text-brand-grey">Loading pipeline…</p>
+        <p className="text-slate-600 dark:text-slate-300">Loading pipeline…</p>
       ) : null}
       {query.isError ? (
         <p className="text-danger">Could not load contracts.</p>
@@ -129,30 +140,21 @@ export default function EndOfTermPage() {
       {view === 'list' && !query.isLoading ? (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-surface dark:border-slate-700">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-slate-200 text-brand-grey dark:border-slate-700">
+            <thead className="border-b border-slate-200 text-slate-600 dark:text-slate-300 dark:border-slate-700">
               <tr>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Vehicle</th>
-                <th className="px-4 py-3 font-medium">Stage</th>
-                <th className="px-4 py-3 font-medium">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-                    }
-                  >
-                    Days left {sortDir === 'asc' ? '↑' : '↓'}
-                  </button>
-                </th>
-                <th className="px-4 py-3 font-medium">Outstanding</th>
+                <SortTh column="client">Client</SortTh>
+                <SortTh column="vehicle">Vehicle</SortTh>
+                <SortTh column="stage">Stage</SortTh>
+                <SortTh column="daysLeft">Days left</SortTh>
+                <SortTh column="outstanding">Outstanding</SortTh>
                 <th className="px-4 py-3 font-medium">Contract</th>
               </tr>
             </thead>
             <tbody>
-              {staged.map(({ contract, stage }) => (
+              {sorted.map(({ contract, stage }) => (
                 <tr
                   key={contract.id}
-                  className="border-b border-slate-100 dark:border-slate-800"
+                  className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/40"
                 >
                   <td className="px-4 py-3">
                     <Link
@@ -194,9 +196,9 @@ export default function EndOfTermPage() {
                   </td>
                 </tr>
               ))}
-              {staged.length === 0 ? (
+              {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-brand-grey">
+                  <td colSpan={6} className="px-4 py-8 text-slate-600 dark:text-slate-300">
                     No end-of-term candidates in the current window.
                   </td>
                 </tr>
@@ -215,7 +217,7 @@ export default function EndOfTermPage() {
             >
               <div className="border-b border-slate-200 px-3 py-3 dark:border-slate-700">
                 <p className="text-sm font-medium text-navy">{stage.label}</p>
-                <p className="text-xs text-brand-grey">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
                   {stage.hint} · {byStage[stage.key].length}
                 </p>
               </div>
@@ -231,10 +233,10 @@ export default function EndOfTermPage() {
                     >
                       {contract.client.firstName} {contract.client.lastName}
                     </Link>
-                    <p className="mt-1 font-mono text-xs text-brand-grey">
+                    <p className="mt-1 font-mono text-xs text-slate-600 dark:text-slate-300">
                       {contract.vehicle.registration}
                     </p>
-                    <p className="mt-1 text-xs text-brand-grey">
+                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                       {contract.status === 'COMPLETED'
                         ? 'Completed'
                         : `${daysRemaining(contract.endDate)} days left`}
@@ -256,7 +258,7 @@ export default function EndOfTermPage() {
                   </li>
                 ))}
                 {byStage[stage.key].length === 0 ? (
-                  <li className="px-1 py-6 text-center text-xs text-brand-grey">
+                  <li className="px-1 py-6 text-center text-xs text-slate-600 dark:text-slate-300">
                     Empty
                   </li>
                 ) : null}

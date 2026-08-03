@@ -1,6 +1,19 @@
 import { Prisma } from '../generated/prisma/client';
 
 const DEFAULT_SERVICE_INTERVAL_KM = 15000;
+/** Hard ceiling for demo/live averages — prevents sync jumps from inventing absurd daily km. */
+const MAX_AVERAGE_DAILY_KM = 250;
+const MIN_AVERAGE_DAILY_KM = 5;
+
+function clampAverageDailyKm(value: Prisma.Decimal | number): Prisma.Decimal {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return new Prisma.Decimal(40);
+  }
+  return new Prisma.Decimal(
+    Math.min(Math.max(n, MIN_AVERAGE_DAILY_KM), MAX_AVERAGE_DAILY_KM),
+  );
+}
 
 export function estimateAverageDailyKm(input: {
   previousOdometer: number;
@@ -13,17 +26,23 @@ export function estimateAverageDailyKm(input: {
   const deltaKm = Math.max(0, input.newOdometer - input.previousOdometer);
 
   if (!input.previousSyncedAt) {
-    return new Prisma.Decimal(input.existingAverage ?? Math.max(deltaKm, 30));
+    const fallback =
+      input.existingAverage != null
+        ? Number(input.existingAverage)
+        : Math.min(Math.max(deltaKm, MIN_AVERAGE_DAILY_KM), 80);
+    return clampAverageDailyKm(fallback);
   }
 
   const elapsedDays = Math.max(
     (now.getTime() - input.previousSyncedAt.getTime()) / (1000 * 60 * 60 * 24),
     1 / 24,
   );
-  const sample = new Prisma.Decimal(deltaKm).div(elapsedDays);
-  const existing = new Prisma.Decimal(input.existingAverage ?? sample);
+  // Ignore impossible samples from clock/odometer quirks
+  const rawSample = deltaKm / elapsedDays;
+  const sample = clampAverageDailyKm(rawSample);
+  const existing = clampAverageDailyKm(input.existingAverage ?? sample);
   // Smooth with prior average
-  return existing.mul(0.7).add(sample.mul(0.3));
+  return clampAverageDailyKm(existing.mul(0.7).add(sample.mul(0.3)));
 }
 
 export function predictNextService(input: {
@@ -61,14 +80,16 @@ export function mileageAgainstLimit(input: {
   averageDailyKm?: Prisma.Decimal | number | null;
 }) {
   const limit = input.monthlyLimit ?? input.contractMonthlyLimit ?? null;
-  const avg = Number(input.averageDailyKm ?? 0);
+  const avgRaw =
+    input.averageDailyKm != null ? Number(input.averageDailyKm) : 0;
+  const avg =
+    avgRaw > 0 ? Number(clampAverageDailyKm(avgRaw)) : 0;
   const projectedMonthly = Math.round(avg * 30);
 
   return {
     monthlyLimitKm: limit,
     projectedMonthlyKm: projectedMonthly,
-    overLimit:
-      limit != null ? projectedMonthly > limit : false,
+    overLimit: limit != null ? projectedMonthly > limit : false,
     usagePercent:
       limit != null && limit > 0
         ? Math.round((projectedMonthly / limit) * 1000) / 10

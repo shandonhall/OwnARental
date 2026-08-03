@@ -9,7 +9,7 @@ import { Queue, Worker } from 'bullmq';
 import { TelematicsService } from './telematics.service';
 import { TELEMATICS_SYNC_QUEUE } from './cartrack.types';
 
-const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
+const DEFAULT_INTERVAL_MS = 15 * 60 * 1000;
 
 type FleetSyncJob = {
   triggeredBy?: 'schedule' | 'queue' | 'manual';

@@ -22,7 +22,7 @@ export default function ClientDetailPage() {
   });
 
   if (query.isLoading) {
-    return <p className="text-brand-grey">Loading client…</p>;
+    return <p className="text-slate-600 dark:text-slate-300">Loading client…</p>;
   }
 
   if (query.isError || !query.data) {
@@ -42,7 +42,7 @@ export default function ClientDetailPage() {
           <h1 className="mt-2 text-3xl text-navy">
             {client.firstName} {client.lastName}
           </h1>
-          <p className="mt-1 text-brand-grey">
+          <p className="mt-1 text-slate-600 dark:text-slate-300">
             {client.city}
             {client.province ? `, ${client.province}` : ''} · FICA{' '}
             {client.ficaStatus}
@@ -59,14 +59,14 @@ export default function ClientDetailPage() {
                 // query will surface state on next load
               }
             }}
-            className="inline-flex rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-navy transition hover:bg-mist"
+            className="inline-flex rounded-md border border-slate-200 dark:border-slate-700 bg-surface px-4 py-2 text-sm font-medium text-navy transition hover:bg-mist"
           >
             Sync to GHL
           </button>
           {summary?.activeContractId ? (
             <Link
               href={`/contracts/${summary.activeContractId}`}
-              className="inline-flex rounded-md border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-navy transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+              className="inline-flex rounded-md border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-navy transition hover:bg-slate-50 dark:hover:bg-slate-900/40 dark:border-slate-700 dark:hover:bg-slate-800"
             >
               Open contract
             </Link>
@@ -82,7 +82,7 @@ export default function ClientDetailPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Outstanding
           </p>
           <p
@@ -96,20 +96,20 @@ export default function ClientDetailPage() {
           </p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Pending fines
           </p>
           <p className="mt-1 text-2xl text-warning">
             {summary?.pendingFineCount ?? 0}
           </p>
-          <p className="mt-1 text-xs text-brand-grey">
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
             {summary?.pendingFineTotal
               ? `R ${Number(summary.pendingFineTotal).toLocaleString('en-ZA')}`
               : 'Clear'}
           </p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Driver score
           </p>
           <p className="mt-1 text-2xl text-navy">
@@ -117,7 +117,7 @@ export default function ClientDetailPage() {
           </p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Alerts
           </p>
           <p className="mt-1 text-2xl text-navy">{summary?.alertCount ?? 0}</p>
@@ -126,7 +126,7 @@ export default function ClientDetailPage() {
 
       {summary?.alerts && summary.alerts.length > 0 ? (
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Alerts & fines
           </h2>
           <ul className="space-y-2 text-sm">
@@ -137,7 +137,7 @@ export default function ClientDetailPage() {
               >
                 <div>
                   <p className="text-navy">{alert.detail}</p>
-                  <p className="text-xs text-brand-grey">{alert.kind}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">{alert.kind}</p>
                 </div>
                 <div className="text-right">
                   {alert.amount ? (
@@ -160,34 +160,34 @@ export default function ClientDetailPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Contact
           </h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">ID number</dt>
+              <dt className="text-slate-600 dark:text-slate-300">ID number</dt>
               <dd className="font-mono">{client.idNumber}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Phone</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Phone</dt>
               <dd>{client.phone}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Alt phone</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Alt phone</dt>
               <dd>{client.altPhone ?? '—'}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Email</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Email</dt>
               <dd>{client.email ?? '—'}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">GHL contact</dt>
+              <dt className="text-slate-600 dark:text-slate-300">GHL contact</dt>
               <dd className="font-mono text-xs">
                 {client.ghlContactId ?? 'Not synced'}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Address</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Address</dt>
               <dd className="text-right">
                 {client.addressLine1}
                 {client.addressLine2 ? `, ${client.addressLine2}` : ''}
@@ -197,7 +197,7 @@ export default function ClientDetailPage() {
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             FICA documents
           </h2>
           <ul className="space-y-2 text-sm">
@@ -231,11 +231,11 @@ export default function ClientDetailPage() {
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-        <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+        <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
           Contracts
         </h2>
         {client.contracts.length === 0 ? (
-          <p className="text-sm text-brand-grey">No contracts linked yet.</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300">No contracts linked yet.</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {client.contracts.map((contract) => (
@@ -251,7 +251,7 @@ export default function ClientDetailPage() {
                     {contract.planType.replace('_', ' ')} · {contract.status}
                   </Link>
                   {contract.outstandingBalance != null ? (
-                    <p className="text-xs text-brand-grey">
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
                       Outstanding R{' '}
                       {Number(contract.outstandingBalance).toLocaleString(
                         'en-ZA',

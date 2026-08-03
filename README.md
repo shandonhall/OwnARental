@@ -21,6 +21,20 @@ Env vars live in `prisma/.env` (`DATABASE_URL`, `DIRECT_URL`, Supabase URL/anon 
 
 ## Auth setup
 
+### Demo admin (pitch / local)
+
+```bash
+npm run prisma:demo-admin
+```
+
+Then sign in at `/login` with:
+
+- **Email:** `admintest@ownarental.co.za`
+- **Password:** `Password123`
+- **Role:** `SUPER_ADMIN`
+
+### Manual staff accounts
+
 1. Supabase Dashboard → Authentication → Users → create staff (email/password).
 2. Sign in at `/login` (creates a `users` row as `FLEET_MANAGER` / User).
 3. Promote to Admin in SQL when needed:

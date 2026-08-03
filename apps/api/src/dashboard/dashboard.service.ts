@@ -1,12 +1,47 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { User } from '../generated/prisma/client';
 import {
   ContractStatus,
   LedgerEntryStatus,
   LedgerEntryType,
+  Role,
   TelematicsEventType,
   VehicleStatus,
 } from '../generated/prisma/enums';
+
+export type TaskCategory =
+  | 'collections'
+  | 'driver'
+  | 'end_of_term'
+  | 'fleet';
+
+type TaskKind =
+  | 'MISSED_PAYMENT'
+  | 'ARREARS'
+  | 'LATE_PAYMENT'
+  | 'PENDING_FINE'
+  | 'SERVICE_DUE'
+  | 'RULE_BREACH'
+  | 'END_OF_TERM';
+
+function taskCategory(kind: TaskKind): TaskCategory {
+  if (kind === 'RULE_BREACH') return 'driver';
+  if (kind === 'END_OF_TERM') return 'end_of_term';
+  if (kind === 'SERVICE_DUE') return 'fleet';
+  return 'collections';
+}
+
+function assigneeRoleForCategory(category: TaskCategory): Role {
+  if (category === 'driver' || category === 'fleet') {
+    return Role.FLEET_MANAGER;
+  }
+  return Role.ADMIN;
+}
+
+function isAdminViewer(role: Role) {
+  return role === Role.ADMIN || role === Role.SUPER_ADMIN;
+}
 
 const ATTENTION_LIMIT = 40;
 const WINS_LIMIT = 6;
@@ -70,7 +105,7 @@ export type DashboardWin = {
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOverview() {
+  async getOverview(viewer: User) {
     const now = new Date();
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
@@ -95,6 +130,7 @@ export class DashboardService {
       recentBreaches,
       activeClients,
       openContracts,
+      staffUsers,
     ] = await Promise.all([
       this.prisma.ledgerEntry.findMany({
         where: {
@@ -258,7 +294,57 @@ export class DashboardService {
           },
         },
       }),
+      this.prisma.user.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          role: true,
+        },
+        orderBy: { fullName: 'asc' },
+      }),
     ]);
+
+    const staffByRole: Record<Role, Array<{
+      id: string;
+      fullName: string;
+      email: string;
+      role: Role;
+    }>> = {
+      [Role.SUPER_ADMIN]: [],
+      [Role.ADMIN]: [],
+      [Role.FLEET_MANAGER]: [],
+    };
+    for (const staff of staffUsers) {
+      staffByRole[staff.role].push(staff);
+    }
+
+    const pickAssignee = (role: Role, index: number) => {
+      const pool =
+        role === Role.ADMIN
+          ? [
+              ...staffByRole[Role.ADMIN],
+              ...staffByRole[Role.SUPER_ADMIN],
+            ]
+          : staffByRole[role];
+      if (pool.length === 0) {
+        return {
+          userId: null as string | null,
+          fullName:
+            role === Role.FLEET_MANAGER ? 'Fleet Manager desk' : 'Admin desk',
+          role,
+          unassigned: true,
+        };
+      }
+      const person = pool[index % pool.length];
+      return {
+        userId: person.id,
+        fullName: person.fullName,
+        role: person.role,
+        unassigned: false,
+      };
+    };
 
     const attention: DashboardAlert[] = [];
     const seenAttention = new Set<string>();
@@ -682,20 +768,99 @@ export class DashboardService {
 
     endingClients.sort((a, b) => a.daysRemaining - b.daysRemaining);
 
-    const myTasks = attention
-      .filter((item) => item.client && item.contractId)
-      .slice(0, 12)
-      .map((item) => ({
-        id: item.id,
-        label: `${item.title} — ${item.detail}`,
-        severity: item.severity,
-        contractId: item.contractId as string,
-        clientId: item.client!.id,
-        kind: item.kind,
-      }));
+    const categoryCounters: Record<TaskCategory, number> = {
+      collections: 0,
+      driver: 0,
+      end_of_term: 0,
+      fleet: 0,
+    };
+
+    const buildTask = (input: {
+      id: string;
+      label: string;
+      severity: 'high' | 'medium';
+      contractId: string | null;
+      clientId: string | null;
+      kind: TaskKind;
+      advancePipelineTo?: string | null;
+    }) => {
+      const category = taskCategory(input.kind);
+      const assigneeRole = assigneeRoleForCategory(category);
+      const assignee = pickAssignee(
+        assigneeRole,
+        categoryCounters[category]++,
+      );
+      return {
+        id: input.id,
+        label: input.label,
+        severity: input.severity,
+        contractId: input.contractId,
+        clientId: input.clientId,
+        kind: input.kind,
+        category,
+        assigneeRole,
+        assignee,
+        advancePipelineTo: input.advancePipelineTo ?? null,
+      };
+    };
+
+    const allTasks = [
+      ...attention
+        .filter(
+          (item) =>
+            item.kind === 'SERVICE_DUE' ||
+            item.kind === 'RULE_BREACH' ||
+            (item.client && item.contractId),
+        )
+        .map((item) =>
+          buildTask({
+            id: item.id,
+            label: `${item.title} — ${item.detail}`,
+            severity: item.severity,
+            contractId: item.contractId,
+            clientId: item.client?.id ?? null,
+            kind: item.kind as TaskKind,
+            advancePipelineTo: null,
+          }),
+        ),
+      ...endingClients.map((item) =>
+        buildTask({
+          id: `eot-${item.contractId}`,
+          label: `End of term — contact ${item.firstName} ${item.lastName} (${item.registration}, ${item.daysRemaining}d)`,
+          severity: 'medium',
+          contractId: item.contractId,
+          clientId: item.clientId,
+          kind: 'END_OF_TERM',
+          advancePipelineTo: 'CONTACTED',
+        }),
+      ),
+    ];
+
+    const adminView = isAdminViewer(viewer.role);
+    const myTasks = allTasks.filter((task) => {
+      if (adminView) return true;
+      if (task.assignee.userId && task.assignee.userId === viewer.id) {
+        return true;
+      }
+      // Fleet managers own driver + fleet queues by role when no named assignee.
+      return task.assigneeRole === viewer.role;
+    });
+
+    const tasksByCategory = {
+      collections: myTasks.filter((t) => t.category === 'collections'),
+      driver: myTasks.filter((t) => t.category === 'driver'),
+      end_of_term: myTasks.filter((t) => t.category === 'end_of_term'),
+      fleet: myTasks.filter((t) => t.category === 'fleet'),
+    };
 
     return {
       generatedAt: now.toISOString(),
+      viewer: {
+        id: viewer.id,
+        fullName: viewer.fullName,
+        role: viewer.role,
+        canSeeAllTasks: adminView,
+      },
       summary: {
         attentionCount: attention.length,
         winsCount: wins.length,
@@ -750,6 +915,7 @@ export class DashboardService {
         pendingFineCount,
       },
       myTasks,
+      tasksByCategory,
     };
   }
 }

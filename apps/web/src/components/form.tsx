@@ -61,7 +61,7 @@ export function PrimaryButton(
   return (
     <button
       {...props}
-      className={`rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a] disabled:opacity-50 ${props.className ?? ''}`}
+      className={`rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#13729a] disabled:opacity-50 dark:bg-[#1680ab] dark:text-white dark:hover:bg-[#13729a] ${props.className ?? ''}`}
     />
   );
 }
@@ -72,7 +72,7 @@ export function SecondaryButton(
   return (
     <button
       {...props}
-      className={`rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-navy transition hover:bg-slate-50 disabled:opacity-50 ${props.className ?? ''}`}
+      className={`rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#1a2832] transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 ${props.className ?? ''}`}
     />
   );
 }
@@ -83,7 +83,7 @@ export function DangerButton(
   return (
     <button
       {...props}
-      className={`rounded-md border border-brand-red/30 bg-brand-red/10 px-4 py-2 text-sm text-brand-red transition hover:bg-brand-red/15 disabled:opacity-50 ${props.className ?? ''}`}
+      className={`rounded-md border border-brand-red/30 bg-brand-red/10 px-4 py-2 text-sm font-semibold text-brand-red transition hover:bg-brand-red/15 disabled:opacity-50 dark:border-red-400/40 dark:text-red-300 ${props.className ?? ''}`}
     />
   );
 }

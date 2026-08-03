@@ -10,7 +10,8 @@
   --oar-navy: #1a2832;
   --oar-ink: #020b0f;
   --oar-mist: #eef3f6;
-  --oar-grey: #929191;
+  /* Darker grey for readable secondary text on mist/white surfaces */
+  --oar-grey: #5f6b73;
 
   --background: var(--oar-mist);
   --foreground: var(--oar-ink);
@@ -33,8 +34,9 @@
   --brand: #3aa4d1;
   --brand-red: #e04854;
   --brand-gold: #eab024;
-  --brand-grey: #9aa3aa;
+  --brand-grey: #b4c0c8;
   --navy: #d7e0e6;
+  --mist: #1a242c;
   --success: #34d399;
   --warning: #eab024;
   --danger: #f87171;
@@ -78,4 +80,37 @@ body {
 
 .dark .oar-topbar {
   background: #0a1014;
+}
+
+/*
+  Date picker glyph: color-scheme:dark + invert cancel each other out.
+  Force a light SVG icon instead so it stays visible on dark inputs.
+*/
+.dark input[type='date'],
+.dark input[type='time'],
+.dark input[type='datetime-local'],
+.dark input[type='month'],
+.dark input[type='week'] {
+  color-scheme: dark;
+}
+
+.dark input[type='date']::-webkit-calendar-picker-indicator,
+.dark input[type='time']::-webkit-calendar-picker-indicator,
+.dark input[type='datetime-local']::-webkit-calendar-picker-indicator,
+.dark input[type='month']::-webkit-calendar-picker-indicator,
+.dark input[type='week']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 1;
+  filter: none;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 1rem 1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  /* light calendar glyph */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d7e0e6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+  /* hide the native dark glyph under our SVG */
+  color: transparent;
 }

@@ -9,6 +9,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   addMonths,
   expectedContractTotal,
+  isCostLedgerType,
+  isIncomeLedgerType,
+  sumExpectedIncome,
+  sumOutstandingIncome,
+  sumRecognizedCosts,
   sumPaidIncome,
   withFinanceSummary,
 } from '../finance/finance.utils';
@@ -17,6 +22,28 @@ import {
   ListContractsQuery,
   UpdateContractDto,
 } from './contracts.schemas';
+
+function eachMonthStart(from: Date, to: Date): Date[] {
+  const months: Date[] = [];
+  const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+  const last = new Date(to.getFullYear(), to.getMonth(), 1);
+  while (cursor <= last) {
+    months.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return months;
+}
+
+function dueInMonth(
+  due: Date | null | undefined,
+  monthStart: Date,
+): boolean {
+  if (!due) return false;
+  return (
+    due.getFullYear() === monthStart.getFullYear() &&
+    due.getMonth() === monthStart.getMonth()
+  );
+}
 
 @Injectable()
 export class ContractsService {
@@ -275,7 +302,31 @@ export class ContractsService {
     return this.findOne(id);
   }
 
-  async profitability() {
+  async profitability(range?: { from?: string; to?: string }) {
+    const from = range?.from ? new Date(range.from) : null;
+    const to = range?.to ? new Date(range.to) : null;
+    if (to && !Number.isNaN(to.getTime())) {
+      to.setHours(23, 59, 59, 999);
+    }
+    const periodMode = Boolean(from || to);
+
+    const inRangeByDue = (entry: {
+      type: Parameters<typeof isCostLedgerType>[0];
+      paidAt: Date | null;
+      dueDate: Date | null;
+      createdAt: Date;
+    }) => {
+      if (!periodMode) return true;
+      // Period views key off due date so full-month expected includes future dues.
+      const stamp =
+        isCostLedgerType(entry.type) || isIncomeLedgerType(entry.type)
+          ? (entry.dueDate ?? entry.paidAt ?? entry.createdAt)
+          : (entry.paidAt ?? entry.dueDate ?? entry.createdAt);
+      if (from && stamp < from) return false;
+      if (to && stamp > to) return false;
+      return true;
+    };
+
     const vehicles = await this.prisma.vehicle.findMany({
       include: {
         contracts: {
@@ -285,32 +336,94 @@ export class ContractsService {
       orderBy: [{ make: 'asc' }, { model: 'asc' }],
     });
 
+    const monthsInRange =
+      periodMode && from && to ? eachMonthStart(from, to) : [];
+
     return vehicles.map((vehicle) => {
-      const rentalIncome = vehicle.contracts.reduce((sum, contract) => {
-        return sum.add(sumPaidIncome(contract.ledger));
-      }, new Prisma.Decimal(0));
+      const allLedger = vehicle.contracts.flatMap((contract) => contract.ledger);
+      const periodLedger = periodMode
+        ? allLedger.filter(inRangeByDue)
+        : allLedger;
 
-      const maintenanceAndFees = vehicle.contracts.reduce((sum, contract) => {
-        return sum.add(
-          contract.ledger.reduce((ledgerSum, entry) => {
-            if (
-              !['MAINTENANCE', 'FINE', 'TOLL', 'ADMIN_FEE'].includes(entry.type)
-            ) {
-              return ledgerSum;
-            }
-            if (!['ON_TIME', 'EARLY', 'LATE'].includes(entry.status)) {
-              return ledgerSum;
-            }
-            return ledgerSum.add(entry.amount);
-          }, new Prisma.Decimal(0)),
+      let rentalIncome = sumPaidIncome(periodLedger);
+      let outstandingIncome = sumOutstandingIncome(periodLedger);
+      let expectedIncome = sumExpectedIncome(periodLedger);
+
+      if (!periodMode) {
+        // Lifetime forecast: full deal economics (every scheduled month + deposit + balloon),
+        // not only ledger lines raised so far.
+        let contractualExpected = new Prisma.Decimal(0);
+        for (const contract of vehicle.contracts) {
+          if (
+            contract.status === ContractStatus.CANCELLED ||
+            contract.status === ContractStatus.DRAFT
+          ) {
+            continue;
+          }
+          contractualExpected = contractualExpected.add(
+            expectedContractTotal({
+              monthlyRate: contract.monthlyRate,
+              termMonths: contract.termMonths,
+              depositAmount: contract.depositAmount,
+              balloonAmount: contract.balloonAmount,
+            }),
+          );
+        }
+        expectedIncome = contractualExpected;
+        outstandingIncome = Prisma.Decimal.max(
+          contractualExpected.sub(rentalIncome),
+          new Prisma.Decimal(0),
         );
-      }, new Prisma.Decimal(0));
+      }
 
+      // Schedule gap: active contracts still expect monthly rent even if the
+      // ledger line for a month in-range has not been created yet.
+      if (periodMode && monthsInRange.length > 0) {
+        for (const contract of vehicle.contracts) {
+          if (
+            contract.status !== ContractStatus.ACTIVE &&
+            contract.status !== ContractStatus.ARREARS
+          ) {
+            continue;
+          }
+          const rate = new Prisma.Decimal(contract.monthlyRate);
+          for (const monthStart of monthsInRange) {
+            const monthEnd = new Date(
+              monthStart.getFullYear(),
+              monthStart.getMonth() + 1,
+              0,
+              23,
+              59,
+              59,
+              999,
+            );
+            if (contract.startDate > monthEnd) continue;
+            if (contract.endDate < monthStart) continue;
+
+            const hasRentalDue = contract.ledger.some(
+              (entry) =>
+                entry.type === 'RENTAL_PAYMENT' &&
+                dueInMonth(entry.dueDate, monthStart),
+            );
+            if (hasRentalDue) continue;
+
+            expectedIncome = expectedIncome.add(rate);
+            outstandingIncome = outstandingIncome.add(rate);
+          }
+        }
+      }
+
+      // Include pending fines/fees — period views were dropping all unpaid costs.
+      const maintenanceAndFees = sumRecognizedCosts(periodLedger);
       const purchasePrice = new Prisma.Decimal(vehicle.purchasePrice);
-      const totalCost = purchasePrice.add(maintenanceAndFees);
+      // Period view: operating P&L only. Lifetime: include purchase capital.
+      const totalCost = periodMode
+        ? maintenanceAndFees
+        : purchasePrice.add(maintenanceAndFees);
       const profit = rentalIncome.sub(totalCost);
+      const forecastProfit = expectedIncome.sub(totalCost);
       const roiPercent = totalCost.eq(0)
-        ? new Prisma.Decimal(0)
+        ? null
         : profit.div(totalCost).mul(100);
 
       return {
@@ -324,11 +437,78 @@ export class ContractsService {
         maintenanceAndFees: maintenanceAndFees.toFixed(2),
         totalCost: totalCost.toFixed(2),
         rentalIncome: rentalIncome.toFixed(2),
+        outstandingIncome: outstandingIncome.toFixed(2),
+        expectedIncome: expectedIncome.toFixed(2),
         profit: profit.toFixed(2),
-        roiPercent: roiPercent.toFixed(1),
+        forecastProfit: forecastProfit.toFixed(2),
+        roiPercent: roiPercent == null ? null : roiPercent.toFixed(1),
         contractCount: vehicle.contracts.length,
+        mode: periodMode ? 'period' : 'lifetime',
+        from: from?.toISOString() ?? null,
+        to: to?.toISOString() ?? null,
       };
     });
+  }
+
+  /**
+   * Month-on-month operating totals for finance charts.
+   * Each bucket uses the same period rules as profitability({ from, to }).
+   */
+  async profitabilityTrend(months = 6) {
+    const count = Math.min(Math.max(Math.floor(months), 3), 24);
+    const now = new Date();
+    const series: Array<{
+      key: string;
+      label: string;
+      year: number;
+      month: number;
+      received: string;
+      costs: string;
+      expected: string;
+      owed: string;
+      profit: string;
+      forecastProfit: string;
+    }> = [];
+
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const from = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const to = new Date(
+        now.getFullYear(),
+        now.getMonth() - i + 1,
+        0,
+      );
+      const fromStr = from.toISOString().slice(0, 10);
+      const toStr = to.toISOString().slice(0, 10);
+      const rows = await this.profitability({ from: fromStr, to: toStr });
+
+      let received = new Prisma.Decimal(0);
+      let costs = new Prisma.Decimal(0);
+      let expected = new Prisma.Decimal(0);
+      let owed = new Prisma.Decimal(0);
+      for (const row of rows) {
+        received = received.add(row.rentalIncome);
+        costs = costs.add(row.totalCost);
+        expected = expected.add(row.expectedIncome);
+        owed = owed.add(row.outstandingIncome);
+      }
+      const profit = received.sub(costs);
+      const forecastProfit = expected.sub(costs);
+
+      series.push({
+        key: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}`,
+        label: from.toLocaleString('en-ZA', { month: 'short' }),
+        year: from.getFullYear(),
+        month: from.getMonth() + 1,
+        received: received.toFixed(2),
+        costs: costs.toFixed(2),
+        expected: expected.toFixed(2),
+        owed: owed.toFixed(2),
+        profit: profit.toFixed(2),
+        forecastProfit: forecastProfit.toFixed(2),
+      });
+    }
+
+    return { months: count, series };
   }
 
   async pendingFines() {

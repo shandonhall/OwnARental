@@ -112,7 +112,7 @@ export function NotificationCenter() {
 
       {open ? (
         <div className="absolute right-0 z-40 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-slate-800">
             <p className="text-sm font-medium text-navy">Notification center</p>
             <button
               type="button"
@@ -123,6 +123,9 @@ export function NotificationCenter() {
               Mark all read
             </button>
           </div>
+          <p className="border-b border-slate-100 px-3 py-1.5 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+            Payments · service · driver · end of term — open full list to filter
+          </p>
           {query.isLoading ? (
             <p className="px-3 py-4 text-sm text-brand-grey">Loading…</p>
           ) : null}

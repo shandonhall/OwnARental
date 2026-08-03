@@ -71,13 +71,13 @@ export default function NewClientPage() {
         <h1 className="mt-2 text-3xl text-navy">
           Add client
         </h1>
-        <p className="mt-1 text-brand-grey">
+        <p className="mt-1 text-slate-600 dark:text-slate-300">
           Capture renter details and FICA document Storage URLs.
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2">
+        <div className="grid gap-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 md:grid-cols-2">
           <Field label="First name">
             <TextInput name="firstName" required />
           </Field>
@@ -121,8 +121,8 @@ export default function NewClientPage() {
           </Field>
         </div>
 
-        <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2">
-          <h2 className="md:col-span-2 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="grid gap-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 md:grid-cols-2">
+          <h2 className="md:col-span-2 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             FICA document URLs (Supabase Storage)
           </h2>
           <Field label="ID document URL">

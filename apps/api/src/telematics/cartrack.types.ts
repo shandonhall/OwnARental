@@ -24,9 +24,17 @@ export type CarTrackSnapshot = {
   ruleBreaches: RuleBreach[];
 };
 
+export type SnapshotContext = {
+  currentOdometerKm?: number;
+  averageDailyKm?: number | null;
+};
+
 export type CarTrackProvider = {
   readonly mode: 'mock' | 'live';
-  fetchSnapshot(deviceId: string): Promise<CarTrackSnapshot>;
+  fetchSnapshot(
+    deviceId: string,
+    context?: SnapshotContext,
+  ): Promise<CarTrackSnapshot>;
   immobilize(deviceId: string): Promise<void>;
   mobilize(deviceId: string): Promise<void>;
 };

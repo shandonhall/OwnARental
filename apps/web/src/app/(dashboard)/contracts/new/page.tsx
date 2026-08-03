@@ -79,13 +79,13 @@ export default function NewContractPage() {
           ← Back to contracts
         </Link>
         <h1 className="mt-2 text-3xl text-navy">New contract</h1>
-        <p className="mt-1 text-brand-grey">
+        <p className="mt-1 text-slate-600 dark:text-slate-300">
           Link a client to a vehicle with rent-to-own terms.
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2">
+        <div className="grid gap-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 md:grid-cols-2">
           <Field label="Client">
             <TextSelect name="clientId" required defaultValue="">
               <option value="" disabled>

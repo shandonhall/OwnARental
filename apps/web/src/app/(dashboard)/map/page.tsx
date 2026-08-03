@@ -3,16 +3,17 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, statusLabel } from '@/lib/api';
 import { PrimaryButton, SecondaryButton } from '@/components/form';
+import { useTableSort } from '@/lib/table-sort';
 
 const FleetMap = dynamic(
   () => import('@/components/fleet-map').then((mod) => mod.FleetMap),
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[560px] items-center justify-center rounded-lg border border-slate-200 bg-surface text-brand-grey dark:border-slate-700">
+      <div className="flex h-[560px] items-center justify-center rounded-lg border border-slate-200 bg-surface text-slate-600 dark:text-slate-300 dark:border-slate-700">
         Loading map…
       </div>
     ),
@@ -40,89 +41,115 @@ function scoreClass(score: number | null) {
   return 'text-success';
 }
 
-type SortKey =
-  | 'registration'
-  | 'renter'
-  | 'status'
-  | 'odometer'
-  | 'mileage'
-  | 'score';
-
 export default function MapPage() {
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  /** Sticky selection from map/table click — survives mouse leave. */
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>('registration');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  /** Transient hover preview (table row or map pin). */
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  /** Fly/zoom only when a table row is clicked. */
+  const [zoomToId, setZoomToId] = useState<string | null>(null);
+  const [resetViewKey, setResetViewKey] = useState(0);
+  const focusId = hoveredId ?? selectedId;
+  const selectedIdRef = useRef(selectedId);
+  const zoomToIdRef = useRef(zoomToId);
+  selectedIdRef.current = selectedId;
+  zoomToIdRef.current = zoomToId;
 
   const status = useQuery({
     queryKey: ['telematics-status'],
     queryFn: () => api.getTelematicsStatus(),
-    refetchInterval: 60_000,
+    refetchInterval: 15 * 60_000,
   });
 
   const mapQuery = useQuery({
     queryKey: ['telematics-map'],
     queryFn: () => api.getMapAssets(),
-    refetchInterval: 60_000,
+    refetchInterval: 15 * 60_000,
   });
 
-  const assets = Array.isArray(mapQuery.data) ? mapQuery.data : [];
+  const assets = useMemo(
+    () => (Array.isArray(mapQuery.data) ? mapQuery.data : []),
+    [mapQuery.data],
+  );
   const located = assets.filter(
     (asset) => asset.lat != null && asset.lng != null,
   );
   const overLimit = assets.filter((asset) => asset.mileage.overLimit);
   const serviceDue = assets.filter((asset) => asset.serviceDueSoon);
 
-  const sorted = useMemo(() => {
-    const rows = [...assets];
-    const dir = sortDir === 'asc' ? 1 : -1;
-    rows.sort((a, b) => {
-      const av =
-        sortKey === 'registration'
-          ? a.registration
-          : sortKey === 'renter'
-            ? `${a.client?.lastName ?? ''} ${a.client?.firstName ?? ''}`
-            : sortKey === 'status'
-              ? a.status
-              : sortKey === 'odometer'
-                ? a.currentOdometerKm
-                : sortKey === 'mileage'
-                  ? a.mileage.usagePercent ?? -1
-                  : a.driverScore ?? -1;
-      const bv =
-        sortKey === 'registration'
-          ? b.registration
-          : sortKey === 'renter'
-            ? `${b.client?.lastName ?? ''} ${b.client?.firstName ?? ''}`
-            : sortKey === 'status'
-              ? b.status
-              : sortKey === 'odometer'
-                ? b.currentOdometerKm
-                : sortKey === 'mileage'
-                  ? b.mileage.usagePercent ?? -1
-                  : b.driverScore ?? -1;
-      if (typeof av === 'number' && typeof bv === 'number') {
-        return (av - bv) * dir;
-      }
-      return String(av).localeCompare(String(bv)) * dir;
-    });
-    return rows;
-  }, [assets, sortDir, sortKey]);
+  const accessors = useMemo(
+    () => ({
+      registration: (a: (typeof assets)[number]) => a.registration,
+      renter: (a: (typeof assets)[number]) =>
+        a.client
+          ? `${a.client.lastName} ${a.client.firstName}`
+          : '',
+      status: (a: (typeof assets)[number]) => a.status,
+      odometer: (a: (typeof assets)[number]) => a.currentOdometerKm,
+      mileage: (a: (typeof assets)[number]) => a.mileage.usagePercent ?? -1,
+      service: (a: (typeof assets)[number]) =>
+        a.daysUntilService ??
+        (a.nextServiceDueDate
+          ? new Date(a.nextServiceDueDate).getTime()
+          : null),
+      score: (a: (typeof assets)[number]) => a.driverScore ?? -1,
+      lastSync: (a: (typeof assets)[number]) =>
+        a.lastTelematicsSyncAt
+          ? new Date(a.lastTelematicsSyncAt).getTime()
+          : 0,
+    }),
+    [],
+  );
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
+  const { sorted, SortTh } = useTableSort(
+    assets,
+    accessors,
+    'registration',
+  );
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const row = document.querySelector<HTMLElement>(
+      `[data-vehicle-id="${selectedId}"]`,
+    );
+    row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedId]);
+
+  function clearSelection() {
+    const hadFocus =
+      selectedIdRef.current != null || zoomToIdRef.current != null;
+    setSelectedId(null);
+    setHoveredId(null);
+    setZoomToId(null);
+    if (hadFocus) setResetViewKey((key) => key + 1);
   }
 
-  function sortLabel(key: SortKey, label: string) {
-    if (sortKey !== key) return label;
-    return `${label} ${sortDir === 'asc' ? '↑' : '↓'}`;
+  useEffect(() => {
+    function onPointerDown(event: MouseEvent) {
+      const el = event.target as Element | null;
+      if (!el) return;
+      // Keep selection when interacting with a row, pin, or popup.
+      if (el.closest('[data-vehicle-id]')) return;
+      if (el.closest('.leaflet-marker-icon')) return;
+      if (el.closest('.leaflet-popup')) return;
+      clearSelection();
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
+  function selectFromMap(id: string) {
+    setSelectedId(id);
+    setHoveredId(null);
+  }
+
+  function selectFromTable(id: string) {
+    setSelectedId(id);
+    setHoveredId(null);
+    setZoomToId(id);
   }
 
   async function syncFleet() {
@@ -162,7 +189,7 @@ export default function MapPage() {
               className={`rounded-md px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${
                 provider === 'live'
                   ? 'bg-emerald-50 text-success'
-                  : 'bg-slate-100 text-brand-grey'
+                  : 'bg-slate-100 text-slate-600 dark:text-slate-300'
               }`}
             >
               {provider} CarTrack
@@ -173,12 +200,12 @@ export default function MapPage() {
               </span>
             ) : null}
           </div>
-          <p className="mt-1 text-brand-grey">
-            Hover or click a row to enlarge and center that pin. Click a pin to
-            highlight its row.
+          <p className="mt-1 text-slate-600 dark:text-slate-300">
+            Hover or click a pin to highlight its row. Click a table row to
+            zoom the map to that vehicle. Use Reset view to show all pins.
           </p>
           {status.data ? (
-            <p className="mt-2 text-xs text-brand-grey">
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
               {status.data.message}
               {status.data.autoSyncEnabled && intervalMins != null
                 ? ` · Auto-sync every ${intervalMins} min`
@@ -190,6 +217,15 @@ export default function MapPage() {
           ) : null}
         </div>
         <div className="flex gap-2">
+          <SecondaryButton
+            type="button"
+            onClick={() => {
+              setZoomToId(null);
+              setResetViewKey((key) => key + 1);
+            }}
+          >
+            Reset view
+          </SecondaryButton>
           <SecondaryButton
             type="button"
             onClick={() => {
@@ -222,7 +258,7 @@ export default function MapPage() {
 
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Located
           </p>
           <p className="mt-1 text-2xl text-navy">
@@ -230,19 +266,19 @@ export default function MapPage() {
           </p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Over mileage limit
           </p>
           <p className="mt-1 text-2xl text-warning">{overLimit.length}</p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Service due ≤14d
           </p>
           <p className="mt-1 text-2xl text-warning">{serviceDue.length}</p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
-          <p className="text-xs uppercase tracking-wide text-brand-grey">
+          <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Immobilized
           </p>
           <p className="mt-1 text-2xl text-danger">
@@ -257,61 +293,49 @@ export default function MapPage() {
         <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
           <FleetMap
             assets={assets}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
+            selectedId={focusId}
+            zoomToId={zoomToId}
+            resetViewKey={resetViewKey}
+            onSelect={selectFromMap}
+            onHover={setHoveredId}
           />
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-surface dark:border-slate-700">
+      <div
+        className="overflow-x-auto rounded-lg border border-slate-200 bg-surface dark:border-slate-700"
+        onMouseLeave={() => setHoveredId(null)}
+      >
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-brand-grey dark:border-slate-700">
+          <thead className="border-b border-slate-200 text-slate-600 dark:text-slate-300 dark:border-slate-700">
             <tr>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('registration')}>
-                  {sortLabel('registration', 'Vehicle')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('renter')}>
-                  {sortLabel('renter', 'Renter')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('status')}>
-                  {sortLabel('status', 'Status')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('odometer')}>
-                  {sortLabel('odometer', 'Odometer')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('mileage')}>
-                  {sortLabel('mileage', 'Mileage use')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">Next service</th>
-              <th className="px-4 py-3 font-medium">
-                <button type="button" onClick={() => toggleSort('score')}>
-                  {sortLabel('score', 'Score')}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-medium">Last sync</th>
+              <SortTh column="registration">Vehicle</SortTh>
+              <SortTh column="renter">Renter</SortTh>
+              <SortTh column="status">Status</SortTh>
+              <SortTh column="odometer">Odometer</SortTh>
+              <SortTh column="mileage">Mileage use</SortTh>
+              <SortTh column="service">Next service</SortTh>
+              <SortTh column="score">Score</SortTh>
+              <SortTh column="lastSync">Last sync</SortTh>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((asset) => (
+            {sorted.map((asset) => {
+              const isSelected = selectedId === asset.id;
+              const isFocused = focusId === asset.id;
+              return (
               <tr
                 key={asset.id}
+                data-vehicle-id={asset.id}
                 className={`border-b border-slate-100 transition dark:border-slate-800 ${
-                  selectedId === asset.id
-                    ? 'bg-brand/10'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-900/40'
+                  isSelected
+                    ? 'bg-brand/15 ring-1 ring-inset ring-brand/40'
+                    : isFocused
+                      ? 'bg-brand/10'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/40'
                 }`}
-                onMouseEnter={() => setSelectedId(asset.id)}
-                onClick={() => setSelectedId(asset.id)}
+                onMouseEnter={() => setHoveredId(asset.id)}
+                onClick={() => selectFromTable(asset.id)}
               >
                 <td className="px-4 py-3">
                   <Link
@@ -321,7 +345,7 @@ export default function MapPage() {
                   >
                     {asset.registration}
                   </Link>
-                  <p className="text-xs text-brand-grey">
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
                     {asset.make} {asset.model}
                   </p>
                 </td>
@@ -335,7 +359,7 @@ export default function MapPage() {
                       {asset.client.firstName} {asset.client.lastName}
                     </Link>
                   ) : (
-                    <span className="text-brand-grey">Yard stock</span>
+                    <span className="text-slate-600 dark:text-slate-300">Yard stock</span>
                   )}
                 </td>
                 <td className={`px-4 py-3 ${statusClass(asset.status)}`}>
@@ -369,7 +393,7 @@ export default function MapPage() {
                     ? new Date(asset.nextServiceDueDate).toLocaleDateString()
                     : '—'}
                   {asset.daysUntilService != null ? (
-                    <span className="mt-0.5 block text-xs text-brand-grey">
+                    <span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-300">
                       {asset.daysUntilService < 0
                         ? `${Math.abs(asset.daysUntilService)}d overdue`
                         : `${asset.daysUntilService}d`}
@@ -379,16 +403,17 @@ export default function MapPage() {
                 <td className={`px-4 py-3 ${scoreClass(asset.driverScore)}`}>
                   {asset.driverScore ?? '—'}
                 </td>
-                <td className="px-4 py-3 text-xs text-brand-grey">
+                <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
                   {asset.lastTelematicsSyncAt
                     ? new Date(asset.lastTelematicsSyncAt).toLocaleString()
                     : 'Never'}
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {assets.length === 0 && !mapQuery.isLoading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-brand-grey">
+                <td colSpan={8} className="px-4 py-8 text-slate-600 dark:text-slate-300">
                   No map assets yet — sync telematics to populate locations.
                 </td>
               </tr>

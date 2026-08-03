@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 export type Slice = {
   key: string;
   label: string;
@@ -285,5 +287,150 @@ export function SimpleBars({
         </li>
       ))}
     </ul>
+  );
+}
+
+export type FinanceTrendPoint = {
+  key: string;
+  label: string;
+  year: number;
+  month: number;
+  received: number;
+  costs: number;
+  expected: number;
+  owed: number;
+  profit: number;
+  forecastProfit: number;
+};
+
+/** Grouped vertical bars for month-on-month finance comparison. */
+export function FinanceMonthChart({
+  series,
+  metric = 'received',
+  formatValue,
+}: {
+  series: FinanceTrendPoint[];
+  metric?: 'received' | 'costs' | 'profit' | 'expected' | 'forecastProfit';
+  formatValue?: (n: number) => string;
+}) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const values = series.map((row) => row[metric]);
+  const maxAbs = Math.max(...values.map((v) => Math.abs(v)), 1);
+  const hasNegative = values.some((v) => v < 0);
+
+  const shortLabel = (n: number) => {
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '−' : '';
+    if (abs >= 1_000_000) {
+      return `${sign}R${(abs / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}m`;
+    }
+    if (abs >= 10_000) {
+      return `${sign}R${Math.round(abs / 1000)}k`;
+    }
+    if (abs >= 1000) {
+      return `${sign}R${(abs / 1000).toFixed(1)}k`;
+    }
+    return `${sign}R${Math.round(abs)}`;
+  };
+
+  const fullLabel =
+    formatValue ??
+    ((n: number) => `R\u202F${Math.round(n).toLocaleString('en-ZA')}`);
+
+  const colorFor = (metricKey: typeof metric, value: number) => {
+    if (metricKey === 'costs') return '#eab024';
+    if (metricKey === 'expected') return '#3aa4d1';
+    if (metricKey === 'forecastProfit' || metricKey === 'profit') {
+      return value >= 0 ? '#16a34a' : '#c01725';
+    }
+    return '#16a34a';
+  };
+
+  if (series.length === 0) {
+    return (
+      <p className="text-sm text-slate-600 dark:text-slate-300">
+        No monthly data yet.
+      </p>
+    );
+  }
+
+  const labelH = 22;
+  const chartH = 168;
+  const plotH = chartH - labelH;
+  const zeroY = hasNegative ? plotH / 2 : plotH;
+
+  return (
+    <div>
+      <div
+        className="flex items-end gap-1.5 sm:gap-2.5"
+        style={{ height: chartH }}
+        onMouseLeave={() => setHovered(null)}
+      >
+        {series.map((row) => {
+          const value = row[metric];
+          const height = Math.max(
+            (Math.abs(value) / maxAbs) *
+              (hasNegative ? plotH / 2 - 8 : plotH - 12),
+            value === 0 ? 0 : 3,
+          );
+          const isNeg = value < 0;
+          const active = hovered === row.key;
+          return (
+            <button
+              key={row.key}
+              type="button"
+              className="group relative flex h-full min-w-0 flex-1 flex-col items-center"
+              onMouseEnter={() => setHovered(row.key)}
+              aria-label={`${row.label} ${fullLabel(value)}`}
+              title={fullLabel(value)}
+            >
+              {/* Always-visible figure */}
+              <span
+                className={`mb-1 w-full truncate text-center text-[10px] font-medium tabular-nums leading-tight sm:text-[11px] ${
+                  active ? 'text-navy' : 'text-slate-600 dark:text-slate-300'
+                }`}
+                style={{ height: labelH }}
+              >
+                {shortLabel(value)}
+              </span>
+              <div className="relative w-full max-w-11 flex-1" style={{ height: plotH }}>
+                <div
+                  className="absolute left-0 right-0 border-t border-slate-200 dark:border-slate-700"
+                  style={{ top: zeroY }}
+                />
+                <div
+                  className="absolute left-1/2 w-[70%] max-w-9 -translate-x-1/2 transition-opacity"
+                  style={{
+                    height: Math.max(height, value === 0 ? 0 : 3),
+                    background: colorFor(metric, value),
+                    opacity: active || !hovered ? 1 : 0.4,
+                    top: isNeg ? zeroY : zeroY - height,
+                    borderRadius: isNeg ? '0 0 2px 2px' : '2px 2px 0 0',
+                  }}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex gap-1.5 sm:gap-2.5">
+        {series.map((row) => (
+          <div
+            key={`${row.key}-label`}
+            className="min-w-0 flex-1 text-center text-[11px] tabular-nums text-slate-600 dark:text-slate-300"
+          >
+            <span className="block truncate">{row.label}</span>
+            {series.length > 8 ? null : (
+              <span className="block text-[10px] text-slate-500">
+                {String(row.year).slice(2)}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+        Figures on bars are rounded (k / m). Hover for the exact amount.
+      </p>
+    </div>
   );
 }

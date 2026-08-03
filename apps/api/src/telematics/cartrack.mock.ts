@@ -3,13 +3,17 @@ import type {
   CarTrackSnapshot,
   DriverScoreBreakdown,
   RuleBreach,
+  SnapshotContext,
 } from './cartrack.types';
 
 /** Deterministic demo provider when CARTRACK_API_URL is not configured. */
 export class MockCarTrackProvider implements CarTrackProvider {
   readonly mode = 'mock' as const;
 
-  async fetchSnapshot(deviceId: string): Promise<CarTrackSnapshot> {
+  async fetchSnapshot(
+    deviceId: string,
+    context?: SnapshotContext,
+  ): Promise<CarTrackSnapshot> {
     const seed = hashString(deviceId);
     const baseLat = -26.093 + ((seed % 1000) / 1000) * 0.25;
     const baseLng = 27.99 + (((seed >> 3) % 1000) / 1000) * 0.25;
@@ -18,12 +22,25 @@ export class MockCarTrackProvider implements CarTrackProvider {
     const scoreBreakdown = buildBreakdown(seed, overall);
     const ruleBreaches = buildBreaches(deviceId, seed, overall);
 
+    // Keep odometer near the vehicle's known reading — only creep a few km
+    // so demo syncs don't invent huge jumps that break mileage %.
+    const baseline =
+      context?.currentOdometerKm != null && context.currentOdometerKm > 0
+        ? context.currentOdometerKm
+        : 12000 + (seed % 80000);
+    const dailyKm = Math.min(
+      Math.max(Number(context?.averageDailyKm ?? 40), 15),
+      120,
+    );
+    const minuteCreep = Math.floor(
+      ((Date.now() / 1000 / 60) % 60) * (dailyKm / (24 * 60)),
+    );
+
     return {
       deviceId,
       lat: Number((baseLat + jitter).toFixed(7)),
       lng: Number((baseLng - jitter / 2).toFixed(7)),
-      odometerKm:
-        12000 + (seed % 80000) + Math.floor((Date.now() / 1000 / 60) % 40),
+      odometerKm: baseline + minuteCreep,
       driverScore: overall,
       recordedAt: new Date(),
       scoreBreakdown,

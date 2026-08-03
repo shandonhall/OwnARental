@@ -10,7 +10,7 @@ import { DangerButton, PrimaryButton, SecondaryButton } from '@/components/form'
 function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <div className="mb-1 flex justify-between text-xs text-brand-grey">
+      <div className="mb-1 flex justify-between text-xs text-slate-600 dark:text-slate-300">
         <span>{label}</span>
         <span>{value}</span>
       </div>
@@ -107,7 +107,7 @@ export default function VehicleDetailPage() {
   }
 
   if (query.isLoading) {
-    return <p className="text-brand-grey">Loading vehicle…</p>;
+    return <p className="text-slate-600 dark:text-slate-300">Loading vehicle…</p>;
   }
 
   if (query.isError || !query.data) {
@@ -142,14 +142,14 @@ export default function VehicleDetailPage() {
                 className={`rounded-md px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${
                   detail.provider === 'live'
                     ? 'bg-emerald-50 text-success'
-                    : 'bg-slate-100 text-brand-grey'
+                    : 'bg-slate-100 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 {detail.provider} CarTrack
               </span>
             ) : null}
           </div>
-          <p className="mt-1 font-mono text-brand-grey">{vehicle.registration}</p>
+          <p className="mt-1 font-mono text-slate-600 dark:text-slate-300">{vehicle.registration}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <SecondaryButton type="button" onClick={syncNow} disabled={busy}>
@@ -182,25 +182,25 @@ export default function VehicleDetailPage() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Identity
           </h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">VIN</dt>
+              <dt className="text-slate-600 dark:text-slate-300">VIN</dt>
               <dd className="font-mono">{vehicle.vin}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Status</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Status</dt>
               <dd>{statusLabel(vehicle.status)}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Purchase price</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Purchase price</dt>
               <dd>R {Number(vehicle.purchasePrice).toLocaleString()}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">CarTrack device</dt>
+              <dt className="text-slate-600 dark:text-slate-300">CarTrack device</dt>
               <dd className="font-mono">
                 {detail?.vehicle.carTrackDeviceId ??
                   vehicle.carTrackDeviceId ??
@@ -208,13 +208,13 @@ export default function VehicleDetailPage() {
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Immobilized</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Immobilized</dt>
               <dd className={immobilized ? 'text-danger' : 'text-success'}>
                 {immobilized ? 'Yes' : 'No'}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Last sync</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Last sync</dt>
               <dd>
                 {detail?.vehicle.lastTelematicsSyncAt
                   ? new Date(
@@ -226,13 +226,13 @@ export default function VehicleDetailPage() {
           </dl>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Telematics & maintenance
           </h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Odometer</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Odometer</dt>
               <dd>
                 {(
                   detail?.vehicle.currentOdometerKm ?? vehicle.currentOdometerKm
@@ -241,13 +241,13 @@ export default function VehicleDetailPage() {
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Driver score</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Driver score</dt>
               <dd>
                 {detail?.vehicle.driverScore ?? vehicle.driverScore ?? '—'}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Avg daily km</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Avg daily km</dt>
               <dd>
                 {detail?.vehicle.averageDailyKm
                   ? Number(detail.vehicle.averageDailyKm).toFixed(1)
@@ -255,7 +255,7 @@ export default function VehicleDetailPage() {
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Mileage vs limit</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Mileage vs limit</dt>
               <dd
                 className={
                   detail?.mileage.overLimit ? 'text-danger' : undefined
@@ -267,7 +267,7 @@ export default function VehicleDetailPage() {
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-brand-grey">Next service</dt>
+              <dt className="text-slate-600 dark:text-slate-300">Next service</dt>
               <dd>
                 {detail?.prediction
                   ? `${new Date(
@@ -283,8 +283,8 @@ export default function VehicleDetailPage() {
       </div>
 
       {breakdown ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Driver score breakdown
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -355,8 +355,8 @@ export default function VehicleDetailPage() {
       ) : null}
 
       {contract ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <h2 className="mb-2 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Active assignment
           </h2>
           <p className="text-sm">
@@ -373,22 +373,22 @@ export default function VehicleDetailPage() {
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-brand-grey">
+        <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 p-4 text-sm text-slate-600 dark:text-slate-300">
           No active contract linked.
         </div>
       )}
 
       {detail?.vehicle.telematicsEvents &&
       detail.vehicle.telematicsEvents.length > 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
             Recent telematics events
           </h2>
           <ul className="space-y-2 text-sm">
             {detail.vehicle.telematicsEvents.slice(0, 12).map((event) => (
               <li
                 key={event.id}
-                className="flex justify-between gap-4 border-b border-slate-100 pb-2"
+                className="flex justify-between gap-4 border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/40 pb-2"
               >
                 <span
                   className={
