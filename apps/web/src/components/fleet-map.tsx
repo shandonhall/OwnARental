@@ -16,13 +16,15 @@ const statusColor: Record<string, string> = {
   WRITTEN_OFF: '#2c3d49',
 };
 
-function pinIcon(status: string, immobilized: boolean) {
+function pinIcon(status: string, immobilized: boolean, selected: boolean) {
   const color = immobilized ? '#f97316' : statusColor[status] ?? '#94a3b8';
+  const size = selected ? 22 : 14;
+  const border = selected ? 3 : 2;
   return L.divIcon({
     className: '',
-    html: `<div style="width:14px;height:14px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 0 0 1px rgba(0,0,0,.35)"></div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
+    html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${color};border:${border}px solid white;box-shadow:0 0 0 ${selected ? 3 : 1}px rgba(0,0,0,.35);transform:translate(${selected ? -4 : 0}px, ${selected ? -4 : 0}px);transition:transform .15s ease"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
 
@@ -39,13 +41,39 @@ function FitBounds({ points }: { points: Array<[number, number]> }) {
   return null;
 }
 
-export function FleetMap({ assets }: { assets: MapAsset[] }) {
+function FocusSelected({
+  asset,
+}: {
+  asset: MapAsset | null;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!asset || asset.lat == null || asset.lng == null) return;
+    map.flyTo([asset.lat, asset.lng], Math.max(map.getZoom(), 13), {
+      duration: 0.55,
+    });
+  }, [asset, map]);
+  return null;
+}
+
+export function FleetMap({
+  assets,
+  selectedId,
+  onSelect,
+}: {
+  assets: MapAsset[];
+  selectedId?: string | null;
+  onSelect?: (id: string | null) => void;
+}) {
   const points = assets
     .filter((asset) => asset.lat != null && asset.lng != null)
     .map((asset) => [asset.lat as number, asset.lng as number] as [number, number]);
 
   const center: [number, number] =
     points[0] ?? [-26.1433, 28.0497]; // Randburg default
+
+  const selected =
+    assets.find((asset) => asset.id === selectedId) ?? null;
 
   return (
     <MapContainer
@@ -59,13 +87,19 @@ export function FleetMap({ assets }: { assets: MapAsset[] }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitBounds points={points} />
+      <FocusSelected asset={selected} />
       {assets.map((asset) => {
         if (asset.lat == null || asset.lng == null) return null;
+        const selectedPin = asset.id === selectedId;
         return (
           <Marker
             key={asset.id}
             position={[asset.lat, asset.lng]}
-            icon={pinIcon(asset.status, asset.isImmobilized)}
+            icon={pinIcon(asset.status, asset.isImmobilized, selectedPin)}
+            eventHandlers={{
+              click: () => onSelect?.(asset.id),
+            }}
+            zIndexOffset={selectedPin ? 1000 : 0}
           >
             <Popup>
               <div className="space-y-1 text-sm">

@@ -330,4 +330,45 @@ export class ContractsService {
       };
     });
   }
+
+  async pendingFines() {
+    const entries = await this.prisma.ledgerEntry.findMany({
+      where: {
+        type: { in: ['FINE', 'TOLL'] },
+        status: 'PENDING',
+      },
+      include: {
+        contract: {
+          include: {
+            client: true,
+            vehicle: true,
+          },
+        },
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    return entries.map((entry) => ({
+      id: entry.id,
+      type: entry.type as 'FINE' | 'TOLL',
+      amount: Number(entry.amount).toFixed(2),
+      status: entry.status,
+      dueDate: entry.dueDate?.toISOString() ?? null,
+      description: entry.description,
+      contractId: entry.contractId,
+      client: {
+        id: entry.contract.client.id,
+        firstName: entry.contract.client.firstName,
+        lastName: entry.contract.client.lastName,
+      },
+      vehicle: entry.contract.vehicle
+        ? {
+            id: entry.contract.vehicle.id,
+            registration: entry.contract.vehicle.registration,
+            make: entry.contract.vehicle.make,
+            model: entry.contract.vehicle.model,
+          }
+        : null,
+    }));
+  }
 }

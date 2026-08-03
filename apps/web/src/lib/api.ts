@@ -66,6 +66,7 @@ export type Vehicle = {
       id: string;
       firstName: string;
       lastName: string;
+      city?: string;
     };
   }>;
 };
@@ -97,13 +98,49 @@ export type Client = {
     id: string;
     planType: string;
     status: string;
+    outstandingBalance?: string;
+    endDate?: string;
     vehicle?: {
       id: string;
       make: string;
       model: string;
       registration: string;
+      driverScore?: number | null;
     };
   }>;
+  opsSummary?: {
+    arrears: boolean;
+    outstandingBalance: string | null;
+    pendingFineCount: number;
+    pendingFineTotal: string;
+    driverScore: number | null;
+    activeContractId: string | null;
+    alertCount: number;
+    alerts: Array<{
+      id: string;
+      kind: string;
+      detail: string;
+      amount: string | null;
+      contractId: string;
+    }>;
+  };
+};
+
+export type PendingFine = {
+  id: string;
+  type: 'FINE' | 'TOLL';
+  amount: string;
+  status: LedgerEntryStatus;
+  dueDate: string | null;
+  description: string | null;
+  contractId: string;
+  client: { id: string; firstName: string; lastName: string };
+  vehicle: {
+    id: string;
+    registration: string;
+    make: string;
+    model: string;
+  } | null;
 };
 
 export type CreateClientInput = {
@@ -711,6 +748,7 @@ export type DashboardOverview = {
     paymentAlerts: number;
     serviceDue: number;
     contractsNearingCompletion: number;
+    pendingFineCount?: number;
   };
   kpi: {
     activeFleet: number;
@@ -751,6 +789,39 @@ export type DashboardOverview = {
   };
   attention: DashboardAlert[];
   wins: DashboardWin[];
+  analytics?: {
+    geography: Array<{ area: string; count: number }>;
+    contractHealth: {
+      healthy: number;
+      ending: number;
+      needsAttention: number;
+      byStatus: Array<{ status: string; count: number }>;
+    };
+    endOfTerm: {
+      watch: number;
+      finalNinety: number;
+      contacted: number;
+      closing: number;
+      completed: number;
+    };
+    endingClients?: Array<{
+      clientId: string;
+      firstName: string;
+      lastName: string;
+      contractId: string;
+      registration: string;
+      daysRemaining: number;
+    }>;
+    pendingFineCount: number;
+  };
+  myTasks?: Array<{
+    id: string;
+    label: string;
+    severity: 'high' | 'medium';
+    contractId: string;
+    clientId: string;
+    kind: DashboardAlert['kind'];
+  }>;
 };
 
 export type MapAsset = {

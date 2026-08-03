@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Aligned with marketing site tokens (ownarental.co.za /website) */
   --oar-red: #c01725;
@@ -22,6 +24,20 @@
   --success: #16a34a;
   --warning: var(--oar-gold);
   --danger: var(--oar-red);
+}
+
+.dark {
+  --background: #0f161c;
+  --foreground: #e8eef2;
+  --surface: #172129;
+  --brand: #3aa4d1;
+  --brand-red: #e04854;
+  --brand-gold: #eab024;
+  --brand-grey: #9aa3aa;
+  --navy: #d7e0e6;
+  --success: #34d399;
+  --warning: #eab024;
+  --danger: #f87171;
 }
 
 @theme inline {
@@ -50,12 +66,16 @@ body {
 
 /* Dashboard surface helpers aligned to ownarental.co.za */
 .oar-panel {
-  border: 1px solid rgb(226 232 240);
+  border: 1px solid color-mix(in srgb, var(--navy) 14%, transparent);
   background: var(--surface);
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
 }
 
 .oar-topbar {
-  background: var(--navy);
+  background: #2c3d49;
   color: white;
+}
+
+.dark .oar-topbar {
+  background: #0a1014;
 }

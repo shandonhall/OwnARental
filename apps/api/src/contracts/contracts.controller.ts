@@ -33,6 +33,11 @@ export class ContractsController {
     return this.contractsService.profitability();
   }
 
+  @Get('fines')
+  pendingFines() {
+    return this.contractsService.pendingFines();
+  }
+
   @Post()
   create(
     @Body(new ZodValidationPipe(createContractSchema))

@@ -30,6 +30,7 @@ export default function ClientDetailPage() {
   }
 
   const client = query.data;
+  const summary = client.opsSummary;
 
   return (
     <section className="space-y-6">
@@ -62,6 +63,14 @@ export default function ClientDetailPage() {
           >
             Sync to GHL
           </button>
+          {summary?.activeContractId ? (
+            <Link
+              href={`/contracts/${summary.activeContractId}`}
+              className="inline-flex rounded-md border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-navy transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
+              Open contract
+            </Link>
+          ) : null}
           <Link
             href={`/clients/${client.id}/edit`}
             className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
@@ -71,8 +80,86 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
+          <p className="text-xs uppercase tracking-wide text-brand-grey">
+            Outstanding
+          </p>
+          <p
+            className={`mt-1 text-2xl ${
+              summary?.arrears ? 'text-danger' : 'text-navy'
+            }`}
+          >
+            {summary?.outstandingBalance != null
+              ? `R ${Number(summary.outstandingBalance).toLocaleString('en-ZA')}`
+              : '—'}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
+          <p className="text-xs uppercase tracking-wide text-brand-grey">
+            Pending fines
+          </p>
+          <p className="mt-1 text-2xl text-warning">
+            {summary?.pendingFineCount ?? 0}
+          </p>
+          <p className="mt-1 text-xs text-brand-grey">
+            {summary?.pendingFineTotal
+              ? `R ${Number(summary.pendingFineTotal).toLocaleString('en-ZA')}`
+              : 'Clear'}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
+          <p className="text-xs uppercase tracking-wide text-brand-grey">
+            Driver score
+          </p>
+          <p className="mt-1 text-2xl text-navy">
+            {summary?.driverScore ?? '—'}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
+          <p className="text-xs uppercase tracking-wide text-brand-grey">
+            Alerts
+          </p>
+          <p className="mt-1 text-2xl text-navy">{summary?.alertCount ?? 0}</p>
+        </div>
+      </div>
+
+      {summary?.alerts && summary.alerts.length > 0 ? (
+        <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
+            Alerts & fines
+          </h2>
+          <ul className="space-y-2 text-sm">
+            {summary.alerts.map((alert) => (
+              <li
+                key={alert.id}
+                className="flex items-center justify-between gap-4 border-b border-slate-100 py-2 last:border-0 dark:border-slate-800"
+              >
+                <div>
+                  <p className="text-navy">{alert.detail}</p>
+                  <p className="text-xs text-brand-grey">{alert.kind}</p>
+                </div>
+                <div className="text-right">
+                  {alert.amount ? (
+                    <p className="text-warning">
+                      R {Number(alert.amount).toLocaleString('en-ZA')}
+                    </p>
+                  ) : null}
+                  <Link
+                    href={`/contracts/${alert.contractId}`}
+                    className="text-xs text-brand hover:underline"
+                  >
+                    Contract
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
           <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
             Contact
           </h2>
@@ -109,7 +196,7 @@ export default function ClientDetailPage() {
           </dl>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
           <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
             FICA documents
           </h2>
@@ -121,7 +208,9 @@ export default function ClientDetailPage() {
                   key={doc.key}
                   className="flex items-center justify-between gap-4"
                 >
-                  <span className="text-slate-300">{doc.label}</span>
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {doc.label}
+                  </span>
                   {url ? (
                     <a
                       href={url}
@@ -141,7 +230,7 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
         <h2 className="mb-3 text-sm uppercase tracking-wide text-brand-grey">
           Contracts
         </h2>
@@ -150,18 +239,34 @@ export default function ClientDetailPage() {
         ) : (
           <ul className="space-y-2 text-sm">
             {client.contracts.map((contract) => (
-              <li key={contract.id} className="flex justify-between gap-4">
-                <span>
-                  {contract.planType.replace('_', ' ')} · {contract.status}
-                </span>
-                {contract.vehicle && (
+              <li
+                key={contract.id}
+                className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 py-2 last:border-0 dark:border-slate-800"
+              >
+                <div>
+                  <Link
+                    href={`/contracts/${contract.id}`}
+                    className="text-navy hover:text-brand"
+                  >
+                    {contract.planType.replace('_', ' ')} · {contract.status}
+                  </Link>
+                  {contract.outstandingBalance != null ? (
+                    <p className="text-xs text-brand-grey">
+                      Outstanding R{' '}
+                      {Number(contract.outstandingBalance).toLocaleString(
+                        'en-ZA',
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+                {contract.vehicle ? (
                   <Link
                     href={`/fleet/${contract.vehicle.id}`}
                     className="text-brand hover:underline"
                   >
                     {contract.vehicle.registration}
                   </Link>
-                )}
+                ) : null}
               </li>
             ))}
           </ul>

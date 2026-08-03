@@ -8,12 +8,13 @@ import {
   VehicleStatus,
 } from '../generated/prisma/enums';
 
-const ATTENTION_LIMIT = 8;
+const ATTENTION_LIMIT = 40;
 const WINS_LIMIT = 6;
 const EARLY_LOOKBACK_DAYS = 45;
 const COMPLETED_LOOKBACK_DAYS = 90;
 const SERVICE_DUE_DAYS = 14;
 const BREACH_LOOKBACK_DAYS = 7;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const FLEET_STATUS_ORDER: VehicleStatus[] = [
   VehicleStatus.ACTIVE,
@@ -92,6 +93,8 @@ export class DashboardService {
       completedContracts,
       vehicles,
       recentBreaches,
+      activeClients,
+      openContracts,
     ] = await Promise.all([
       this.prisma.ledgerEntry.findMany({
         where: {
@@ -220,6 +223,40 @@ export class DashboardService {
         },
         orderBy: { recordedAt: 'desc' },
         take: 10,
+      }),
+      this.prisma.client.findMany({
+        where: { isActive: true },
+        select: { id: true, city: true, province: true },
+      }),
+      this.prisma.contract.findMany({
+        where: {
+          status: {
+            in: [
+              ContractStatus.DRAFT,
+              ContractStatus.ACTIVE,
+              ContractStatus.ARREARS,
+              ContractStatus.COMPLETED,
+            ],
+          },
+        },
+        select: {
+          id: true,
+          status: true,
+          endDate: true,
+          endOfTermNotifiedAt: true,
+          clientId: true,
+          client: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          vehicle: {
+            select: {
+              id: true,
+              registration: true,
+              make: true,
+              model: true,
+            },
+          },
+        },
       }),
     ]);
 
@@ -554,6 +591,109 @@ export class DashboardService {
 
     const activeFleet = active + arrears;
 
+    const pendingFineCount = pendingFines.length;
+    const attentionClientIds = new Set(
+      attention
+        .map((item) => item.client?.id)
+        .filter((id): id is string => id != null),
+    );
+
+    const geographyMap = new Map<string, number>();
+    for (const client of activeClients) {
+      const area = (client.city || client.province || 'Unknown').trim();
+      geographyMap.set(area, (geographyMap.get(area) ?? 0) + 1);
+    }
+    const geography = [...geographyMap.entries()]
+      .map(([area, count]) => ({ area, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    let healthy = 0;
+    let ending = 0;
+    let needsAttention = 0;
+    const endOfTerm = {
+      watch: 0,
+      finalNinety: 0,
+      contacted: 0,
+      closing: 0,
+      completed: 0,
+    };
+    const endingClients: Array<{
+      clientId: string;
+      firstName: string;
+      lastName: string;
+      contractId: string;
+      registration: string;
+      daysRemaining: number;
+    }> = [];
+
+    const contractHealthByStatus: Record<string, number> = {
+      DRAFT: 0,
+      ACTIVE: 0,
+      ARREARS: 0,
+      COMPLETED: 0,
+    };
+
+    for (const contract of openContracts) {
+      if (contract.status in contractHealthByStatus) {
+        contractHealthByStatus[contract.status] += 1;
+      }
+
+      const daysLeft = Math.ceil(
+        (contract.endDate.getTime() - now.getTime()) / MS_PER_DAY,
+      );
+
+      if (contract.status === ContractStatus.COMPLETED) {
+        endOfTerm.completed += 1;
+        continue;
+      }
+
+      if (
+        contract.status === ContractStatus.ACTIVE ||
+        contract.status === ContractStatus.ARREARS
+      ) {
+        if (attentionClientIds.has(contract.clientId)) {
+          needsAttention += 1;
+        } else if (daysLeft <= 90) {
+          ending += 1;
+          endingClients.push({
+            clientId: contract.client.id,
+            firstName: contract.client.firstName,
+            lastName: contract.client.lastName,
+            contractId: contract.id,
+            registration: contract.vehicle.registration,
+            daysRemaining: daysLeft,
+          });
+        } else {
+          healthy += 1;
+        }
+
+        if (contract.endOfTermNotifiedAt) {
+          endOfTerm.contacted += 1;
+        } else if (daysLeft <= 30) {
+          endOfTerm.closing += 1;
+        } else if (daysLeft <= 90) {
+          endOfTerm.finalNinety += 1;
+        } else if (daysLeft <= 180) {
+          endOfTerm.watch += 1;
+        }
+      }
+    }
+
+    endingClients.sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+    const myTasks = attention
+      .filter((item) => item.client && item.contractId)
+      .slice(0, 12)
+      .map((item) => ({
+        id: item.id,
+        label: `${item.title} — ${item.detail}`,
+        severity: item.severity,
+        contractId: item.contractId as string,
+        clientId: item.client!.id,
+        kind: item.kind,
+      }));
+
     return {
       generatedAt: now.toISOString(),
       summary: {
@@ -568,6 +708,7 @@ export class DashboardService {
         paymentAlerts,
         serviceDue: serviceDueCount,
         contractsNearingCompletion,
+        pendingFineCount,
       },
       kpi: {
         activeFleet,
@@ -594,6 +735,21 @@ export class DashboardService {
       },
       attention,
       wins,
+      analytics: {
+        geography,
+        contractHealth: {
+          healthy,
+          ending,
+          needsAttention,
+          byStatus: Object.entries(contractHealthByStatus)
+            .map(([status, count]) => ({ status, count }))
+            .filter((row) => row.count > 0),
+        },
+        endOfTerm,
+        endingClients,
+        pendingFineCount,
+      },
+      myTasks,
     };
   }
 }
