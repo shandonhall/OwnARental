@@ -23,6 +23,14 @@ export class AuthService {
     this.supabase = createClient(url, anonKey);
   }
 
+  /** First-time dashboard users must exist in `users` unless auto-provision is enabled (dev). */
+  private staffAutoProvisionEnabled(): boolean {
+    const explicit = this.config.get<string>('STAFF_AUTO_PROVISION');
+    if (explicit === 'true') return true;
+    if (explicit === 'false') return false;
+    return process.env.NODE_ENV !== 'production';
+  }
+
   async resolveUserFromToken(accessToken: string) {
     const { data, error } = await this.supabase.auth.getUser(accessToken);
 
@@ -41,31 +49,39 @@ export class AuthService {
         authUser.user_metadata.full_name) ||
       email.split('@')[0];
 
-    const preferredRole =
-      email.toLowerCase() === 'admintest@ownarental.co.za'
-        ? Role.SUPER_ADMIN
-        : Role.FLEET_MANAGER;
-
-    const user = await this.prisma.user.upsert({
+    const existing = await this.prisma.user.findUnique({
       where: { id: authUser.id },
-      update: {
-        email,
-        lastLoginAt: new Date(),
-        ...(preferredRole === Role.SUPER_ADMIN
-          ? { role: Role.SUPER_ADMIN, fullName, isActive: true }
-          : {}),
-      },
-      create: {
+    });
+
+    if (existing) {
+      if (!existing.isActive) {
+        throw new ForbiddenException('User account is inactive');
+      }
+
+      return this.prisma.user.update({
+        where: { id: authUser.id },
+        data: {
+          email,
+          fullName,
+          lastLoginAt: new Date(),
+        },
+      });
+    }
+
+    if (!this.staffAutoProvisionEnabled()) {
+      throw new ForbiddenException(
+        'Dashboard access is not provisioned for this account. Contact an administrator.',
+      );
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
         id: authUser.id,
         email,
         fullName,
-        role: preferredRole,
+        role: Role.FLEET_MANAGER,
       },
     });
-
-    if (!user.isActive) {
-      throw new ForbiddenException('User account is inactive');
-    }
 
     return user;
   }

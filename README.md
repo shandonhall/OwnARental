@@ -19,6 +19,24 @@ npm run prisma:seed
 
 Env vars live in `prisma/.env` (`DATABASE_URL`, `DIRECT_URL`, Supabase URL/anon key).
 
+### Supabase security (RLS)
+
+Supabase emails about “tables exposed via the public URL” mean **Row Level Security (RLS)** is off on `public` tables. Anyone with your project URL + **anon** key can query them through PostgREST (`/rest/v1/...`).
+
+This app’s dashboard loads data through the **Nest API** (Bearer JWT), not direct Supabase table access. Supabase is used for **Auth** (and future FICA Storage). You should still enable RLS.
+
+1. Supabase Dashboard → **SQL Editor** → New query.
+2. Paste and run the migration file:
+   `supabase/migrations/20260805100000_enable_rls_public_tables.sql`
+3. Dashboard → **Database** → **Security Advisor** (or **Reports**) and confirm RLS warnings are cleared.
+4. After each `prisma db push` that adds tables, add `ENABLE ROW LEVEL SECURITY` + `REVOKE` for new tables (same pattern).
+
+**Storage:** When you create FICA buckets, keep them **private** and add Storage policies so only `authenticated` staff (or service role via API) can read/write — never public buckets for ID documents.
+
+**Keys:** Never put `service_role` or `DATABASE_URL` in the browser. Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` belong in `apps/web`.
+
+Full checklist: **[docs/SECURITY-POPIA.md](docs/SECURITY-POPIA.md)** (RLS, staff provisioning, RBAC, FICA Storage, production env).
+
 ## Auth setup
 
 ### Demo admin (pitch / local)
