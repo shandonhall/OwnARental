@@ -315,6 +315,8 @@ export class DashboardService {
       [Role.SUPER_ADMIN]: [],
       [Role.ADMIN]: [],
       [Role.FLEET_MANAGER]: [],
+      [Role.SALES]: [],
+      [Role.FINANCE]: [],
     };
     for (const staff of staffUsers) {
       staffByRole[staff.role].push(staff);

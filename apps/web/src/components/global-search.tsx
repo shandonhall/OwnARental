@@ -75,7 +75,8 @@ export function GlobalSearch({ className }: { className?: string }) {
   const clients = search.data?.clients ?? [];
   const vehicles = search.data?.vehicles ?? [];
   const contracts = search.data?.contracts ?? [];
-  const total = clients.length + vehicles.length + contracts.length;
+  const leads = search.data?.leads ?? [];
+  const total = clients.length + vehicles.length + contracts.length + leads.length;
   const showPanel = open && debounced.length >= 2;
 
   return (
@@ -103,7 +104,7 @@ export function GlobalSearch({ className }: { className?: string }) {
             router.push(vehicles[0].href);
           }
         }}
-        placeholder="Search clients, reg, VIN, ID…"
+        placeholder="Search clients, leads, reg, VIN, ID…"
         className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-navy outline-none ring-brand/30 placeholder:text-brand-grey focus:border-brand focus:ring-2"
         autoComplete="off"
       />
@@ -124,6 +125,11 @@ export function GlobalSearch({ className }: { className?: string }) {
           <ResultGroup
             label="Clients"
             items={clients}
+            onSelect={() => setOpen(false)}
+          />
+          <ResultGroup
+            label="Leads"
+            items={leads}
             onSelect={() => setOpen(false)}
           />
           <ResultGroup

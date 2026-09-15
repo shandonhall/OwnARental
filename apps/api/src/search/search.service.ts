@@ -10,7 +10,7 @@ export class SearchService {
     const q = query.q;
     const take = query.limit;
 
-    const [clients, vehicles, contracts] = await Promise.all([
+    const [clients, vehicles, contracts, leads] = await Promise.all([
       this.prisma.client.findMany({
         where: {
           isActive: true,
@@ -99,6 +99,28 @@ export class SearchService {
           },
         },
       }),
+      this.prisma.lead.findMany({
+        where: {
+          archivedAt: null,
+          OR: [
+            { firstName: { contains: q, mode: 'insensitive' } },
+            { lastName: { contains: q, mode: 'insensitive' } },
+            { cellphone: { contains: q } },
+            { email: { contains: q, mode: 'insensitive' } },
+            { area: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        take,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          cellphone: true,
+          stage: true,
+          source: true,
+        },
+      }),
     ]);
 
     return {
@@ -123,6 +145,13 @@ export class SearchService {
         title: `${contract.client.firstName} ${contract.client.lastName}`,
         subtitle: `${contract.vehicle.registration} · ${contract.planType} · ${contract.status}`,
         href: `/contracts/${contract.id}`,
+      })),
+      leads: leads.map((lead) => ({
+        type: 'lead' as const,
+        id: lead.id,
+        title: `${lead.firstName} ${lead.lastName}`,
+        subtitle: `${lead.cellphone} · ${lead.stage.replaceAll('_', ' ')} · ${lead.source.replaceAll('_', ' ')}`,
+        href: `/leads/${lead.id}`,
       })),
     };
   }

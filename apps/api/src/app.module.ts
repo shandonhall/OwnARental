@@ -14,6 +14,7 @@ import { GhlModule } from './ghl/ghl.module';
 import { PipelineModule } from './pipeline/pipeline.module';
 import { FinesModule } from './fines/fines.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { LeadsModule } from './leads/leads.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -40,6 +41,7 @@ import { AppService } from './app.service';
     PipelineModule,
     FinesModule,
     DashboardModule,
+    LeadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

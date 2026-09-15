@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/client';
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
 
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'FLEET_MANAGER';
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'FLEET_MANAGER' | 'SALES' | 'FINANCE';
 
 export type AuthUser = {
   id: string;
@@ -21,6 +21,8 @@ export function roleLabel(role: Role | string) {
   if (role === 'SUPER_ADMIN') return 'Super Admin';
   if (role === 'ADMIN') return 'Admin';
   if (role === 'FLEET_MANAGER') return 'Fleet Manager';
+  if (role === 'SALES') return 'Sales';
+  if (role === 'FINANCE') return 'Finance';
   return 'User';
 }
 
@@ -633,6 +635,58 @@ export const api = {
   invoiceFine: (id: string) =>
     apiFetch<FineImportRow>(`/fines/${id}/invoice`, { method: 'POST' }),
 
+  getLeadsBoard: (params?: { search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    const qs = query.toString();
+    return apiFetch<LeadsBoard>(`/leads/board${qs ? `?${qs}` : ''}`);
+  },
+  getLeadsStaff: () => apiFetch<LeadStaff[]>(`/leads/staff`),
+  getLead: (id: string) => apiFetch<Lead>(`/leads/${id}`),
+  createLead: (data: CreateLeadInput) =>
+    apiFetch<Lead>('/leads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateLead: (id: string, data: UpdateLeadInput) =>
+    apiFetch<Lead>(`/leads/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  updateLeadStage: (
+    id: string,
+    data: { stage: LeadStage; reason?: string | null; lossReason?: LeadLossReason | null; lossNotes?: string | null },
+  ) =>
+    apiFetch<Lead>(`/leads/${id}/stage`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  assignLead: (id: string, data: { userId: string | null; reason?: string | null }) =>
+    apiFetch<Lead>(`/leads/${id}/assign`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  qualifyLead: (
+    id: string,
+    data: {
+      qualificationStatus: LeadQualificationStatus;
+      disqualificationReason?: LeadDisqualificationReason | null;
+      disqualificationNotes?: string | null;
+    },
+  ) =>
+    apiFetch<Lead>(`/leads/${id}/qualify`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  logLeadContact: (
+    id: string,
+    data: { outcome: 'attempted' | 'reached'; channel: LeadContactChannel },
+  ) =>
+    apiFetch<Lead>(`/leads/${id}/contact`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   globalSearch: (q: string, limit = 8) =>
     apiFetch<GlobalSearchResponse>(
       `/search?q=${encodeURIComponent(q)}&limit=${limit}`,
@@ -660,7 +714,7 @@ export const api = {
 };
 
 export type GlobalSearchResult = {
-  type: 'client' | 'vehicle' | 'contract';
+  type: 'client' | 'vehicle' | 'contract' | 'lead';
   id: string;
   title: string;
   subtitle: string;
@@ -672,6 +726,7 @@ export type GlobalSearchResponse = {
   clients: GlobalSearchResult[];
   vehicles: GlobalSearchResult[];
   contracts: GlobalSearchResult[];
+  leads: GlobalSearchResult[];
 };
 
 export type AppNotification = {
@@ -760,6 +815,144 @@ export type FineImportRow = {
   vehicle: { id: string; registration: string } | null;
 };
 
+export type LeadStage =
+  | 'NEW'
+  | 'CONTACTED'
+  | 'QUALIFYING'
+  | 'DOCUMENTS_REQUESTED'
+  | 'APPLICATION_SUBMITTED'
+  | 'APPROVED'
+  | 'VEHICLE_SELECTED'
+  | 'CLOSED_WON'
+  | 'CLOSED_LOST';
+
+export type LeadSource =
+  | 'META_LEAD_FORM'
+  | 'WEBSITE'
+  | 'MANUAL'
+  | 'PHONE_IN'
+  | 'FACEBOOK_MESSENGER'
+  | 'OTHER';
+
+export type LeadQualificationStatus = 'UNASSESSED' | 'QUALIFIED' | 'UNQUALIFIED';
+
+export type LeadDisqualificationReason =
+  | 'UBER_BOLT'
+  | 'AFFORDABILITY'
+  | 'INVALID_OR_NO_DRIVERS_LICENCE'
+  | 'UNREACHABLE'
+  | 'NOT_INTERESTED'
+  | 'OUTSIDE_REQUIREMENTS'
+  | 'NO_SUITABLE_VEHICLE'
+  | 'DUPLICATE'
+  | 'OTHER';
+
+export type LeadLossReason =
+  | 'APPLICATION_DECLINED'
+  | 'CUSTOMER_WITHDREW'
+  | 'NO_SUITABLE_VEHICLE'
+  | 'UNREACHABLE'
+  | 'DUPLICATE'
+  | 'OTHER';
+
+export type LeadContactChannel = 'PHONE' | 'WHATSAPP' | 'EMAIL' | 'SMS' | 'OTHER';
+
+export type LeadStaff = {
+  id: string;
+  fullName: string;
+  email: string;
+  role: Role;
+};
+
+export type Lead = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  cellphone: string;
+  email: string | null;
+  area: string | null;
+  salaryBand: string | null;
+  rentalType: string | null;
+  vehicleNeededTiming: string | null;
+  vehiclePreference: string | null;
+  hasValidDriversLicence: boolean | null;
+  source: LeadSource;
+  sourceDetail: string | null;
+  platform: string | null;
+  campaignName: string | null;
+  adName: string | null;
+  formName: string | null;
+  utmSource: string | null;
+  utmCampaign: string | null;
+  externalLeadId: string | null;
+  stage: LeadStage;
+  qualificationStatus: LeadQualificationStatus;
+  disqualificationReason: LeadDisqualificationReason | null;
+  disqualificationNotes: string | null;
+  lossReason: LeadLossReason | null;
+  lossNotes: string | null;
+  notes: string | null;
+  assignedAt: string | null;
+  firstAttemptAt: string | null;
+  firstAttemptChannel: LeadContactChannel | null;
+  firstContactAt: string | null;
+  firstContactChannel: LeadContactChannel | null;
+  lastContactAt: string | null;
+  documentsReceivedAt: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  href: string;
+  assignedUser: LeadStaff | null;
+  createdByUser: LeadStaff | null;
+  requestedVehicle: {
+    id: string;
+    make: string;
+    model: string;
+    registration: string;
+    year: number;
+  } | null;
+  client: { id: string; firstName: string; lastName: string } | null;
+  wonContract: { id: string; status: string; planType: string } | null;
+  stageHistory: Array<{
+    id: string;
+    fromStage: LeadStage | null;
+    toStage: LeadStage;
+    reason: string | null;
+    changedAt: string;
+    actor: { id: string; fullName: string } | null;
+  }>;
+};
+
+export type CreateLeadInput = {
+  firstName: string;
+  lastName: string;
+  cellphone: string;
+  email?: string | null;
+  area?: string | null;
+  salaryBand?: string | null;
+  rentalType?: string | null;
+  vehicleNeededTiming?: string | null;
+  vehiclePreference?: string | null;
+  hasValidDriversLicence?: boolean | null;
+  source?: LeadSource;
+  sourceDetail?: string | null;
+  notes?: string | null;
+};
+
+export type UpdateLeadInput = Partial<CreateLeadInput>;
+
+export type LeadsBoard = {
+  generatedAt: string;
+  total: number;
+  columns: Array<{
+    stage: LeadStage;
+    label: string;
+    cards: Lead[];
+  }>;
+};
+
 export type DashboardAlert = {
   id: string;
   kind:
@@ -796,6 +989,7 @@ export type NotificationCategory =
   | 'service'
   | 'driver'
   | 'end_of_term'
+  | 'leads'
   | 'other';
 
 export function notificationCategory(kind: string): NotificationCategory {
@@ -811,6 +1005,8 @@ export function notificationCategory(kind: string): NotificationCategory {
       return 'driver';
     case 'END_OF_TERM':
       return 'end_of_term';
+    case 'LEAD_ASSIGNED':
+      return 'leads';
     default:
       return 'other';
   }
@@ -821,6 +1017,7 @@ export function notificationCategoryLabel(category: NotificationCategory) {
   if (category === 'service') return 'Service';
   if (category === 'driver') return 'Driver behaviour';
   if (category === 'end_of_term') return 'End of term';
+  if (category === 'leads') return 'Leads';
   return 'Other';
 }
 

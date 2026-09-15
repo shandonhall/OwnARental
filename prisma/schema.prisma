@@ -19,6 +19,8 @@ enum Role {
   SUPER_ADMIN
   ADMIN
   FLEET_MANAGER
+  SALES
+  FINANCE
 }
 
 enum FicaStatus {
@@ -97,6 +99,8 @@ enum NotificationKind {
   RULE_BREACH
   END_OF_TERM
   SYSTEM
+  LICENCE_DUE
+  LEAD_ASSIGNED
 }
 
 enum NotificationSeverity {
@@ -122,6 +126,11 @@ model User {
 
   ledgerEntries     LedgerEntry[]
   notificationReads NotificationRead[]
+  assignedLeads     Lead[]             @relation("LeadAssignee")
+  createdLeads      Lead[]             @relation("LeadCreator")
+  leadAssignments   LeadAssignment[]   @relation("LeadAssignmentUser")
+  leadAssignmentsMade LeadAssignment[] @relation("LeadAssignmentActor")
+  leadStageActions  LeadStageHistory[] @relation("LeadStageActor")
 
   @@index([role])
   @@index([isActive])
@@ -167,6 +176,7 @@ model Client {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   contracts Contract[]
+  leads     Lead[]
 
   @@index([lastName, firstName])
   @@index([phone])
@@ -223,6 +233,7 @@ model Vehicle {
 
   contracts Contract[]
   telematicsEvents TelematicsEvent[]
+  requestedByLeads Lead[]
 
   @@index([status])
   @@index([make, model])
@@ -299,6 +310,7 @@ model Contract {
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   ledger  LedgerEntry[]
   fineImports FineImport[]
+  wonLeads Lead[]
 
   @@index([clientId])
   @@index([vehicleId])
@@ -413,4 +425,195 @@ model FineImport {
   @@index([status])
   @@index([contractId])
   @@map("fine_imports")
+}
+
+// ---------------------------------------------------------------------------
+// Leads (sales pipeline — already live in Supabase)
+// ---------------------------------------------------------------------------
+
+enum LeadSource {
+  META_LEAD_FORM
+  WEBSITE
+  MANUAL
+  PHONE_IN
+  FACEBOOK_MESSENGER
+  OTHER
+}
+
+enum LeadCreativeType {
+  VIDEO
+  GRAPHIC
+  UNKNOWN
+}
+
+enum LeadDeliverySystem {
+  NONE
+  VMG
+  OTHER
+}
+
+enum LeadContactChannel {
+  PHONE
+  WHATSAPP
+  EMAIL
+  SMS
+  OTHER
+}
+
+enum LeadQualificationStatus {
+  UNASSESSED
+  QUALIFIED
+  UNQUALIFIED
+}
+
+enum LeadDisqualificationReason {
+  UBER_BOLT
+  AFFORDABILITY
+  INVALID_OR_NO_DRIVERS_LICENCE
+  UNREACHABLE
+  NOT_INTERESTED
+  OUTSIDE_REQUIREMENTS
+  NO_SUITABLE_VEHICLE
+  DUPLICATE
+  OTHER
+}
+
+enum LeadLossReason {
+  APPLICATION_DECLINED
+  CUSTOMER_WITHDREW
+  NO_SUITABLE_VEHICLE
+  UNREACHABLE
+  DUPLICATE
+  OTHER
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFYING
+  DOCUMENTS_REQUESTED
+  APPLICATION_SUBMITTED
+  APPROVED
+  VEHICLE_SELECTED
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+model Lead {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName String @map("first_name")
+  lastName  String @map("last_name")
+  cellphone String
+  email     String?
+  area      String?
+  salaryBand String? @map("salary_band")
+  rentalType String? @map("rental_type")
+  vehicleNeededTiming String? @map("vehicle_needed_timing")
+  vehiclePreference   String? @map("vehicle_preference")
+  hasValidDriversLicence Boolean? @map("has_valid_drivers_licence")
+  requestedVehicleId String? @map("requested_vehicle_id") @db.Uuid
+
+  source       LeadSource
+  sourceDetail String?    @map("source_detail")
+  platform     String?
+  sourceCreatedAt DateTime? @map("source_created_at")
+  campaignId   String? @map("campaign_id")
+  campaignName String? @map("campaign_name")
+  adSetId      String? @map("ad_set_id")
+  adSetName    String? @map("ad_set_name")
+  adId         String? @map("ad_id")
+  adName       String? @map("ad_name")
+  formId       String? @map("form_id")
+  formName     String? @map("form_name")
+  creativeType LeadCreativeType @default(UNKNOWN) @map("creative_type")
+  creativeLabel String? @map("creative_label")
+  utmSource    String? @map("utm_source")
+  utmMedium    String? @map("utm_medium")
+  utmCampaign  String? @map("utm_campaign")
+  utmContent   String? @map("utm_content")
+  externalLeadId String? @map("external_lead_id")
+
+  assignedUserId String?   @map("assigned_user_id") @db.Uuid
+  assignedAt     DateTime? @map("assigned_at")
+  firstAttemptAt DateTime? @map("first_attempt_at")
+  firstAttemptChannel LeadContactChannel? @map("first_attempt_channel")
+  firstContactAt DateTime? @map("first_contact_at")
+  firstContactChannel LeadContactChannel? @map("first_contact_channel")
+  lastContactAt  DateTime? @map("last_contact_at")
+
+  stage               LeadStage               @default(NEW)
+  qualificationStatus LeadQualificationStatus @default(UNASSESSED) @map("qualification_status")
+  disqualificationReason LeadDisqualificationReason? @map("disqualification_reason")
+  disqualificationNotes  String? @map("disqualification_notes")
+  lossReason          LeadLossReason? @map("loss_reason")
+  lossNotes           String?         @map("loss_notes")
+  documentsReceivedAt DateTime?       @map("documents_received_at")
+  closedAt            DateTime?       @map("closed_at")
+
+  clientId          String? @map("client_id") @db.Uuid
+  wonContractId     String? @map("won_contract_id") @db.Uuid
+  duplicateOfLeadId String? @map("duplicate_of_lead_id") @db.Uuid
+
+  deliverySystem          LeadDeliverySystem @default(NONE) @map("delivery_system")
+  externalDeliveryId      String? @map("external_delivery_id")
+  externalDeliveryStatus  String? @map("external_delivery_status")
+  externalDeliveredAt     DateTime? @map("external_delivered_at")
+
+  notes           String?
+  archivedAt      DateTime? @map("archived_at")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  assignedUser     User?    @relation("LeadAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdByUser    User?    @relation("LeadCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  requestedVehicle Vehicle? @relation(fields: [requestedVehicleId], references: [id], onDelete: SetNull)
+  client           Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  wonContract      Contract? @relation(fields: [wonContractId], references: [id], onDelete: SetNull)
+  duplicateOf      Lead?    @relation("LeadDuplicate", fields: [duplicateOfLeadId], references: [id], onDelete: SetNull)
+  duplicates       Lead[]   @relation("LeadDuplicate")
+  stageHistory     LeadStageHistory[]
+  assignments      LeadAssignment[]
+
+  @@index([stage])
+  @@index([source])
+  @@index([assignedUserId])
+  @@index([cellphone])
+  @@index([createdAt])
+  @@index([qualificationStatus])
+  @@map("leads")
+}
+
+model LeadStageHistory {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leadId      String     @map("lead_id") @db.Uuid
+  fromStage   LeadStage? @map("from_stage")
+  toStage     LeadStage  @map("to_stage")
+  actorUserId String?    @map("actor_user_id") @db.Uuid
+  changedAt   DateTime   @default(now()) @map("changed_at")
+  reason      String?
+
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actor User? @relation("LeadStageActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, changedAt])
+  @@map("lead_stage_histories")
+}
+
+model LeadAssignment {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leadId           String    @map("lead_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  assignedAt       DateTime  @default(now()) @map("assigned_at")
+  unassignedAt     DateTime? @map("unassigned_at")
+  assignedByUserId String?   @map("assigned_by_user_id") @db.Uuid
+  reason           String?
+
+  lead       Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user       User  @relation("LeadAssignmentUser", fields: [userId], references: [id], onDelete: Restrict)
+  assignedBy User? @relation("LeadAssignmentActor", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([userId])
+  @@map("lead_assignments")
 }

@@ -33,6 +33,7 @@ const TABS: Array<{ id: NotifTab; label: string; hint: string }> = [
     label: 'End of term',
     hint: 'Ownership and return outreach',
   },
+  { id: 'leads', label: 'Leads', hint: 'New assignments and sales follow-up' },
 ];
 
 function severityClass(severity: string) {
@@ -75,6 +76,7 @@ export default function NotificationsPage() {
       service: 0,
       driver: 0,
       end_of_term: 0,
+      leads: 0,
       other: 0,
     };
     for (const item of items) {
@@ -95,6 +97,7 @@ export default function NotificationsPage() {
       'driver',
       'end_of_term',
       'service',
+      'leads',
       'other',
     ];
     return order
