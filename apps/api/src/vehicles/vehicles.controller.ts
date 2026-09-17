@@ -21,14 +21,36 @@ import type {
   ListVehiclesQuery,
 } from './vehicles.schemas';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { Roles } from '../auth/roles.decorator';
-import { Role } from '../generated/prisma/enums';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { Permission } from '../auth/permissions';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { User } from '../generated/prisma/client';
+import { sanitizeContractsForViewer } from '../auth/contract-access';
+import { LicencesService } from '../licences/licences.service';
+
+function sanitizeVehicleForViewer<T extends { contracts?: unknown }>(
+  vehicle: T,
+  role: User['role'],
+): T {
+  if (!vehicle.contracts || !Array.isArray(vehicle.contracts)) return vehicle;
+  return {
+    ...vehicle,
+    contracts: sanitizeContractsForViewer(
+      vehicle.contracts as Record<string, unknown>[],
+      role,
+    ),
+  };
+}
 
 @Controller('vehicles')
 export class VehiclesController {
-  constructor(private readonly vehiclesService: VehiclesService) {}
+  constructor(
+    private readonly vehiclesService: VehiclesService,
+    private readonly licencesService: LicencesService,
+  ) {}
 
   @Post()
+  @RequirePermissions(Permission.FLEET_WRITE)
   create(
     @Body(new ZodValidationPipe(createVehicleSchema))
     body: CreateVehicleDto,
@@ -37,19 +59,36 @@ export class VehiclesController {
   }
 
   @Get()
-  findAll(
+  @RequirePermissions(Permission.FLEET_READ)
+  async findAll(
     @Query(new ZodValidationPipe(listVehiclesQuerySchema))
     query: ListVehiclesQuery,
+    @CurrentUser() user: User,
   ) {
-    return this.vehiclesService.findAll(query);
+    const vehicles = await this.vehiclesService.findAll(query);
+    return vehicles.map((vehicle) =>
+      sanitizeVehicleForViewer(vehicle, user.role),
+    );
+  }
+
+  @Get(':id/licences')
+  @RequirePermissions(Permission.LICENCES_READ)
+  licencesForVehicle(@Param('id', ParseUUIDPipe) id: string) {
+    return this.licencesService.findForVehicle(id);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.vehiclesService.findOne(id);
+  @RequirePermissions(Permission.FLEET_READ)
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    const vehicle = await this.vehiclesService.findOne(id);
+    return sanitizeVehicleForViewer(vehicle, user.role);
   }
 
   @Patch(':id')
+  @RequirePermissions(Permission.FLEET_WRITE)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateVehicleSchema))
@@ -59,7 +98,7 @@ export class VehiclesController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @RequirePermissions(Permission.FLEET_DELETE)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.vehiclesService.remove(id);
   }

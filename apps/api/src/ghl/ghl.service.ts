@@ -43,7 +43,8 @@ export class GhlService {
     const apiUrl =
       this.config.get<string>('GHL_API_URL')?.trim() ||
       'https://services.leadconnectorhq.com';
-    const webhookUrl = this.config.get<string>('GHL_WEBHOOK_URL')?.trim() || null;
+    const webhookUrl =
+      this.config.get<string>('GHL_WEBHOOK_URL')?.trim() || null;
 
     if (apiKey && locationId) {
       this.provider = new LiveGhlProvider(
@@ -80,9 +81,7 @@ export class GhlService {
           IMMOBILIZED: this.config
             .get<string>('GHL_WEBHOOK_IMMOBILIZE')
             ?.trim(),
-          MOBILIZED: this.config
-            .get<string>('GHL_WEBHOOK_IMMOBILIZE')
-            ?.trim(),
+          MOBILIZED: this.config.get<string>('GHL_WEBHOOK_IMMOBILIZE')?.trim(),
           FINE_INVOICE: this.config
             .get<string>('GHL_WEBHOOK_FINE_INVOICE')
             ?.trim(),

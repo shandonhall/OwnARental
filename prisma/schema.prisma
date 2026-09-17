@@ -19,6 +19,8 @@ enum Role {
   SUPER_ADMIN
   ADMIN
   FLEET_MANAGER
+  SALES
+  FINANCE
 }
 
 enum FicaStatus {
@@ -97,6 +99,87 @@ enum NotificationKind {
   RULE_BREACH
   END_OF_TERM
   SYSTEM
+  LICENCE_DUE
+  LEAD_ASSIGNED
+}
+
+enum LeadSource {
+  META_LEAD_FORM
+  WEBSITE
+  MANUAL
+  PHONE_IN
+  FACEBOOK_MESSENGER
+  OTHER
+}
+
+enum LeadCreativeType {
+  VIDEO
+  GRAPHIC
+  UNKNOWN
+}
+
+/// Sales pipeline stage — ownership is separate (assignedUserId / LeadAssignment).
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFYING
+  DOCUMENTS_REQUESTED
+  APPLICATION_SUBMITTED
+  APPROVED
+  VEHICLE_SELECTED
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum LeadQualificationStatus {
+  UNASSESSED
+  QUALIFIED
+  UNQUALIFIED
+}
+
+enum LeadDisqualificationReason {
+  UBER_BOLT
+  AFFORDABILITY
+  INVALID_OR_NO_DRIVERS_LICENCE
+  UNREACHABLE
+  NOT_INTERESTED
+  OUTSIDE_REQUIREMENTS
+  NO_SUITABLE_VEHICLE
+  DUPLICATE
+  OTHER
+}
+
+/// Later-stage loss after (or despite) qualification — not the same as UNQUALIFIED.
+enum LeadLossReason {
+  APPLICATION_DECLINED
+  CUSTOMER_WITHDREW
+  NO_SUITABLE_VEHICLE
+  UNREACHABLE
+  DUPLICATE
+  OTHER
+}
+
+enum LeadContactChannel {
+  PHONE
+  WHATSAPP
+  EMAIL
+  SMS
+  OTHER
+}
+
+enum LeadDeliverySystem {
+  NONE
+  VMG
+  OTHER
+}
+
+enum LicenceRenewalStatus {
+  OPEN
+  IN_PROGRESS
+  RENEWED
+  RECEIVED
+  COMPLETED
+  CANCELLED
 }
 
 enum NotificationSeverity {
@@ -110,18 +193,24 @@ enum NotificationSeverity {
 // ---------------------------------------------------------------------------
 
 model User {
-  id           String   @id @db.Uuid // matches supabase.auth.users.id
-  email        String   @unique
-  fullName     String   @map("full_name")
-  role         Role     @default(FLEET_MANAGER)
-  phone        String?
-  isActive     Boolean  @default(true) @map("is_active")
-  lastLoginAt  DateTime? @map("last_login_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id          String    @id @db.Uuid // matches supabase.auth.users.id
+  email       String    @unique
+  fullName    String    @map("full_name")
+  role        Role      @default(FLEET_MANAGER)
+  phone       String?
+  isActive    Boolean   @default(true) @map("is_active")
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  ledgerEntries     LedgerEntry[]
-  notificationReads NotificationRead[]
+  ledgerEntries       LedgerEntry[]
+  notificationReads   NotificationRead[]
+  licenceRenewals     LicenceRenewal[]
+  assignedLeads       Lead[]             @relation("LeadAssignee")
+  createdLeads        Lead[]             @relation("LeadCreator")
+  leadAssignments     LeadAssignment[]   @relation("LeadAssignmentUser")
+  leadAssignmentsMade LeadAssignment[]   @relation("LeadAssignmentActor")
+  leadStageChanges    LeadStageHistory[]
 
   @@index([role])
   @@index([isActive])
@@ -133,10 +222,10 @@ model User {
 // ---------------------------------------------------------------------------
 
 model Client {
-  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  firstName String @map("first_name")
-  lastName  String @map("last_name")
-  idNumber  String @unique @map("id_number") // SA ID / passport
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName String  @map("first_name")
+  lastName  String  @map("last_name")
+  idNumber  String  @unique @map("id_number") // SA ID / passport
   email     String?
   phone     String
   altPhone  String? @map("alt_phone")
@@ -151,12 +240,12 @@ model Client {
   ficaStatus FicaStatus @default(PENDING) @map("fica_status")
 
   // FICA document URLs → Supabase Storage (never binary blobs)
-  idDocumentUrl         String? @map("id_document_url")
-  driversLicenseUrl     String? @map("drivers_license_url")
-  payslipsUrl           String? @map("payslips_url") // 6 months pack
-  bankStatementsUrl     String? @map("bank_statements_url") // 6 months pack
-  proofOfResidenceUrl   String? @map("proof_of_residence_url")
-  handoverPhotosUrls    String[] @default([]) @map("handover_photos_urls")
+  idDocumentUrl       String?  @map("id_document_url")
+  driversLicenseUrl   String?  @map("drivers_license_url")
+  payslipsUrl         String?  @map("payslips_url") // 6 months pack
+  bankStatementsUrl   String?  @map("bank_statements_url") // 6 months pack
+  proofOfResidenceUrl String?  @map("proof_of_residence_url")
+  handoverPhotosUrls  String[] @default([]) @map("handover_photos_urls")
 
   // GoHighLevel CRM sync
   ghlContactId String? @unique @map("ghl_contact_id")
@@ -166,7 +255,9 @@ model Client {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  contracts Contract[]
+  contracts       Contract[]
+  licenceRenewals LicenceRenewal[]
+  leads           Lead[]
 
   @@index([lastName, firstName])
   @@index([phone])
@@ -180,29 +271,29 @@ model Client {
 // ---------------------------------------------------------------------------
 
 model Vehicle {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  make           String
-  model          String
-  year           Int
-  color          String?
-  vin            String        @unique
-  registration   String        @unique
-  purchasePrice  Decimal       @map("purchase_price") @db.Decimal(12, 2)
-  purchaseDate   DateTime?     @map("purchase_date") @db.Date
-  status         VehicleStatus @default(AVAILABLE)
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  make          String
+  model         String
+  year          Int
+  color         String?
+  vin           String        @unique
+  registration  String        @unique
+  purchasePrice Decimal       @map("purchase_price") @db.Decimal(12, 2)
+  purchaseDate  DateTime?     @map("purchase_date") @db.Date
+  status        VehicleStatus @default(AVAILABLE)
 
   // Contract mileage allowance (km / month) when on assignment
   monthlyMileageLimit Int? @map("monthly_mileage_limit")
 
   // --- CarTrack telematics ---
-  carTrackDeviceId   String?   @unique @map("cartrack_device_id")
-  lastKnownLat       Decimal?  @map("last_known_lat") @db.Decimal(10, 7)
-  lastKnownLng       Decimal?  @map("last_known_lng") @db.Decimal(10, 7)
-  lastLocationAt     DateTime? @map("last_location_at")
-  currentOdometerKm  Int       @default(0) @map("current_odometer_km")
-  driverScore        Int? // 0–100
-  isImmobilized      Boolean   @default(false) @map("is_immobilized")
-  lastImmobilizedAt  DateTime? @map("last_immobilized_at")
+  carTrackDeviceId     String?   @unique @map("cartrack_device_id")
+  lastKnownLat         Decimal?  @map("last_known_lat") @db.Decimal(10, 7)
+  lastKnownLng         Decimal?  @map("last_known_lng") @db.Decimal(10, 7)
+  lastLocationAt       DateTime? @map("last_location_at")
+  currentOdometerKm    Int       @default(0) @map("current_odometer_km")
+  driverScore          Int? // 0–100
+  isImmobilized        Boolean   @default(false) @map("is_immobilized")
+  lastImmobilizedAt    DateTime? @map("last_immobilized_at")
   lastTelematicsSyncAt DateTime? @map("last_telematics_sync_at")
 
   // Predictive maintenance helpers
@@ -221,8 +312,10 @@ model Vehicle {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  contracts Contract[]
+  contracts        Contract[]
   telematicsEvents TelematicsEvent[]
+  licenceRenewals  LicenceRenewal[]
+  interestedLeads  Lead[]
 
   @@index([status])
   @@index([make, model])
@@ -267,38 +360,74 @@ model TelematicsEvent {
 // ---------------------------------------------------------------------------
 
 model Contract {
-  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clientId String @map("client_id") @db.Uuid
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId  String @map("client_id") @db.Uuid
   vehicleId String @map("vehicle_id") @db.Uuid
 
-  planType        PlanType       @map("plan_type")
-  status          ContractStatus @default(DRAFT)
-  termMonths      Int            @map("term_months")
-  monthlyRate     Decimal        @map("monthly_rate") @db.Decimal(12, 2)
-  depositAmount   Decimal        @default(0) @map("deposit_amount") @db.Decimal(12, 2)
-  balloonAmount   Decimal?       @map("balloon_amount") @db.Decimal(12, 2)
-  cipPercent      Int?           @map("cip_percent") // 10 or 20 when CIP plan
-  startDate       DateTime       @map("start_date") @db.Date
-  endDate         DateTime       @map("end_date") @db.Date
-  monthlyKmLimit  Int?           @map("monthly_km_limit")
+  /// Own A Rental Schedule A agreement number (e.g. "OAR12345 EXMPLGP"). Not auto-generated.
+  agreementNumber String? @unique @map("agreement_number")
+
+  planType           PlanType       @map("plan_type")
+  status             ContractStatus @default(DRAFT)
+  termMonths         Int            @map("term_months")
+  /// Rental Amount "All In" — source of truth for finance/profitability (VAT-inclusive).
+  monthlyRate        Decimal        @map("monthly_rate") @db.Decimal(12, 2)
+  depositAmount      Decimal        @default(0) @map("deposit_amount") @db.Decimal(12, 2)
+  balloonAmount      Decimal?       @map("balloon_amount") @db.Decimal(12, 2)
+  cipPercent         Int?           @map("cip_percent") // 10 or 20 when CIP plan (legacy; keep)
+  /// Contract Initiation Payment — non-refundable money amount (Schedule A). Independent of cipPercent.
+  cipAmount          Decimal?       @map("cip_amount") @db.Decimal(12, 2)
+  /// Schedule A vehicle value / rental value snapshot (not Vehicle.purchasePrice).
+  vehicleValue       Decimal?       @map("vehicle_value") @db.Decimal(12, 2)
+  /// One-off initial on-the-road costs (not a monthly component).
+  initialOnRoadCosts Decimal?       @map("initial_on_road_costs") @db.Decimal(12, 2)
+
+  // Monthly All-In component breakdown (nullable = unknown/not captured; 0 = no charge)
+  vehicleRentalAmount  Decimal? @map("vehicle_rental_amount") @db.Decimal(12, 2)
+  administrationAmount Decimal? @map("administration_amount") @db.Decimal(12, 2)
+  warrantyAmount       Decimal? @map("warranty_amount") @db.Decimal(12, 2)
+  servicePlanAmount    Decimal? @map("service_plan_amount") @db.Decimal(12, 2)
+  trackingAmount       Decimal? @map("tracking_amount") @db.Decimal(12, 2)
+  licenceFeeAmount     Decimal? @map("licence_fee_amount") @db.Decimal(12, 2)
+  insuranceAmount      Decimal? @map("insurance_amount") @db.Decimal(12, 2)
+  lifeInsuranceAmount  Decimal? @map("life_insurance_amount") @db.Decimal(12, 2)
+  otherMonthlyAmount   Decimal? @map("other_monthly_amount") @db.Decimal(12, 2)
+
+  startDate          DateTime @map("start_date") @db.Date
+  endDate            DateTime @map("end_date") @db.Date
+  monthlyKmLimit     Int?     @map("monthly_km_limit")
+  /// Annual kilometre allowance (e.g. 30000). Independent of monthlyKmLimit.
+  annualKmLimit      Int?     @map("annual_km_limit")
+  /// Recurring debit-order calendar day (1–31). Not a full invoice date.
+  rentalDueDay       Int?     @map("rental_due_day")
+  /// Address where the hirer will keep the vehicle (Schedule A snapshot).
+  vehicleKeptAddress String?  @map("vehicle_kept_address")
+
+  // Schedule A onboarding flags (null = unknown)
+  lifeInsuranceAccepted       Boolean? @map("life_insurance_accepted")
+  initialRegistrationComplete Boolean? @map("initial_registration_complete")
+  initialLicensingComplete    Boolean? @map("initial_licensing_complete")
+  insuranceComplete           Boolean? @map("insurance_complete")
 
   // Running financials (denormalized for dashboard KPIs; ledger is source of truth)
-  totalPaid           Decimal @default(0) @map("total_paid") @db.Decimal(12, 2)
-  outstandingBalance  Decimal @default(0) @map("outstanding_balance") @db.Decimal(12, 2)
+  totalPaid          Decimal @default(0) @map("total_paid") @db.Decimal(12, 2)
+  outstandingBalance Decimal @default(0) @map("outstanding_balance") @db.Decimal(12, 2)
 
   // End-of-term / GHL pipeline
-  ghlOpportunityId String? @map("ghl_opportunity_id")
-  endOfTermNotifiedAt DateTime? @map("end_of_term_notified_at")
-  endOfTermStage EndOfTermStage? @map("end_of_term_stage")
+  ghlOpportunityId    String?         @map("ghl_opportunity_id")
+  endOfTermNotifiedAt DateTime?       @map("end_of_term_notified_at")
+  endOfTermStage      EndOfTermStage? @map("end_of_term_stage")
 
   notes     String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  client  Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
-  ledger  LedgerEntry[]
-  fineImports FineImport[]
+  client          Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  vehicle         Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  ledger          LedgerEntry[]
+  fineImports     FineImport[]
+  licenceRenewals LicenceRenewal[]
+  wonFromLeads    Lead[]
 
   @@index([clientId])
   @@index([vehicleId])
@@ -308,6 +437,190 @@ model Contract {
   @@index([status, endDate])
   @@index([endOfTermStage])
   @@map("contracts")
+}
+
+// ---------------------------------------------------------------------------
+// Licence renewals (operational / historical disc cycles — not Schedule A fee)
+// ---------------------------------------------------------------------------
+
+model LicenceRenewal {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  vehicleId         String  @map("vehicle_id") @db.Uuid
+  contractId        String? @map("contract_id") @db.Uuid
+  clientId          String? @map("client_id") @db.Uuid
+  responsibleUserId String? @map("responsible_user_id") @db.Uuid
+
+  /// Expiry that triggered this renewal cycle.
+  expiryDate        DateTime  @map("expiry_date") @db.Date
+  /// Expiry printed on the newly renewed disc (seeds the next cycle).
+  renewedExpiryDate DateTime? @map("renewed_expiry_date") @db.Date
+
+  renewalCost Decimal?             @map("renewal_cost") @db.Decimal(12, 2)
+  status      LicenceRenewalStatus @default(OPEN)
+
+  clientNotifiedAt DateTime? @map("client_notified_at")
+  renewalStartedAt DateTime? @map("renewal_started_at")
+  renewedAt        DateTime? @map("renewed_at")
+  receivedAt       DateTime? @map("received_at")
+  sentAt           DateTime? @map("sent_at")
+  collectedAt      DateTime? @map("collected_at")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  contract        Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  responsibleUser User?     @relation(fields: [responsibleUserId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId, expiryDate])
+  @@index([status, expiryDate])
+  @@index([responsibleUserId])
+  @@index([expiryDate])
+  @@map("licence_renewals")
+}
+
+// ---------------------------------------------------------------------------
+// Leads (first-party CRM + campaign attribution — not Client)
+// ---------------------------------------------------------------------------
+
+model Lead {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  firstName String  @map("first_name")
+  lastName  String  @map("last_name")
+  cellphone String
+  email     String?
+
+  area                   String?
+  salaryBand             String?  @map("salary_band")
+  rentalType             String?  @map("rental_type")
+  vehicleNeededTiming    String?  @map("vehicle_needed_timing")
+  vehiclePreference      String?  @map("vehicle_preference")
+  hasValidDriversLicence Boolean? @map("has_valid_drivers_licence")
+  requestedVehicleId     String?  @map("requested_vehicle_id") @db.Uuid
+
+  source       LeadSource
+  sourceDetail String?    @map("source_detail")
+  platform     String?
+
+  /// Platform-side lead created time (Meta etc.). Internal ingest uses createdAt.
+  sourceCreatedAt DateTime? @map("source_created_at")
+
+  campaignId   String? @map("campaign_id")
+  campaignName String? @map("campaign_name")
+  adSetId      String? @map("ad_set_id")
+  adSetName    String? @map("ad_set_name")
+  adId         String? @map("ad_id")
+  adName       String? @map("ad_name")
+  formId       String? @map("form_id")
+  formName     String? @map("form_name")
+
+  creativeType  LeadCreativeType @default(UNKNOWN) @map("creative_type")
+  creativeLabel String?          @map("creative_label")
+
+  utmSource   String? @map("utm_source")
+  utmMedium   String? @map("utm_medium")
+  utmCampaign String? @map("utm_campaign")
+  utmContent  String? @map("utm_content")
+
+  externalLeadId String? @map("external_lead_id")
+
+  assignedUserId String?   @map("assigned_user_id") @db.Uuid
+  assignedAt     DateTime? @map("assigned_at")
+
+  firstAttemptAt      DateTime?           @map("first_attempt_at")
+  firstAttemptChannel LeadContactChannel? @map("first_attempt_channel")
+  firstContactAt      DateTime?           @map("first_contact_at")
+  firstContactChannel LeadContactChannel? @map("first_contact_channel")
+  lastContactAt       DateTime?           @map("last_contact_at")
+
+  stage                  LeadStage                   @default(NEW)
+  qualificationStatus    LeadQualificationStatus     @default(UNASSESSED) @map("qualification_status")
+  disqualificationReason LeadDisqualificationReason? @map("disqualification_reason")
+  disqualificationNotes  String?                     @map("disqualification_notes")
+  lossReason             LeadLossReason?             @map("loss_reason")
+  lossNotes              String?                     @map("loss_notes")
+
+  documentsReceivedAt DateTime? @map("documents_received_at")
+  closedAt            DateTime? @map("closed_at")
+
+  clientId          String? @map("client_id") @db.Uuid
+  wonContractId     String? @map("won_contract_id") @db.Uuid
+  duplicateOfLeadId String? @map("duplicate_of_lead_id") @db.Uuid
+
+  deliverySystem         LeadDeliverySystem @default(NONE) @map("delivery_system")
+  externalDeliveryId     String?            @map("external_delivery_id")
+  externalDeliveryStatus String?            @map("external_delivery_status")
+  externalDeliveredAt    DateTime?          @map("external_delivered_at")
+
+  notes           String?
+  archivedAt      DateTime? @map("archived_at")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  requestedVehicle Vehicle?  @relation(fields: [requestedVehicleId], references: [id], onDelete: SetNull)
+  assignedUser     User?     @relation("LeadAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdByUser    User?     @relation("LeadCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  client           Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  wonContract      Contract? @relation(fields: [wonContractId], references: [id], onDelete: SetNull)
+  duplicateOfLead  Lead?     @relation("LeadDuplicates", fields: [duplicateOfLeadId], references: [id], onDelete: SetNull)
+  duplicateLeads   Lead[]    @relation("LeadDuplicates")
+
+  assignments  LeadAssignment[]
+  stageHistory LeadStageHistory[]
+
+  @@index([assignedUserId, stage])
+  @@index([createdAt])
+  @@index([sourceCreatedAt])
+  @@index([creativeType])
+  @@index([qualificationStatus])
+  @@index([stage])
+  @@index([clientId])
+  @@index([cellphone])
+  @@index([archivedAt])
+  @@map("leads")
+}
+
+model LeadAssignment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  leadId           String    @map("lead_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  assignedAt       DateTime  @default(now()) @map("assigned_at")
+  unassignedAt     DateTime? @map("unassigned_at")
+  assignedByUserId String?   @map("assigned_by_user_id") @db.Uuid
+  reason           String?
+
+  lead           Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user           User  @relation("LeadAssignmentUser", fields: [userId], references: [id], onDelete: Restrict)
+  assignedByUser User? @relation("LeadAssignmentActor", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, assignedAt])
+  @@index([userId, unassignedAt])
+  @@map("lead_assignments")
+}
+
+model LeadStageHistory {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  leadId      String     @map("lead_id") @db.Uuid
+  fromStage   LeadStage? @map("from_stage")
+  toStage     LeadStage  @map("to_stage")
+  actorUserId String?    @map("actor_user_id") @db.Uuid
+  changedAt   DateTime   @default(now()) @map("changed_at")
+  reason      String?
+
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, changedAt])
+  @@map("lead_stage_histories")
 }
 
 // ---------------------------------------------------------------------------
@@ -322,11 +635,11 @@ model LedgerEntry {
   amount     Decimal           @db.Decimal(12, 2)
   currency   String            @default("ZAR") @db.Char(3)
 
-  dueDate    DateTime? @map("due_date") @db.Date
-  paidAt     DateTime? @map("paid_at")
-  reference  String? // bank ref / invoice number
+  dueDate     DateTime? @map("due_date") @db.Date
+  paidAt      DateTime? @map("paid_at")
+  reference   String? // bank ref / invoice number
   description String?
-  metadata   Json? // fine IDs, GHL message IDs, etc.
+  metadata    Json? // fine IDs, GHL message IDs, etc.
 
   createdById String?  @map("created_by_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
@@ -351,19 +664,19 @@ model LedgerEntry {
 // ---------------------------------------------------------------------------
 
 model Notification {
-  id        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  dedupeKey String               @unique @map("dedupe_key")
-  kind      NotificationKind
-  severity  NotificationSeverity @default(MEDIUM)
-  title     String
-  detail    String
-  href      String?
-  amount    Decimal?             @db.Decimal(12, 2)
-  entityType String?             @map("entity_type")
-  entityId   String?             @map("entity_id") @db.Uuid
-  active    Boolean              @default(true)
-  createdAt DateTime             @default(now()) @map("created_at")
-  updatedAt DateTime             @updatedAt @map("updated_at")
+  id         String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dedupeKey  String               @unique @map("dedupe_key")
+  kind       NotificationKind
+  severity   NotificationSeverity @default(MEDIUM)
+  title      String
+  detail     String
+  href       String?
+  amount     Decimal?             @db.Decimal(12, 2)
+  entityType String?              @map("entity_type")
+  entityId   String?              @map("entity_id") @db.Uuid
+  active     Boolean              @default(true)
+  createdAt  DateTime             @default(now()) @map("created_at")
+  updatedAt  DateTime             @updatedAt @map("updated_at")
 
   reads NotificationRead[]
 

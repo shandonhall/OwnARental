@@ -8,8 +8,8 @@ import {
 } from '@nestjs/common';
 import { TelematicsService } from './telematics.service';
 import { TelematicsSchedulerService } from './telematics.scheduler';
-import { Roles } from '../auth/roles.decorator';
-import { Role } from '../generated/prisma/enums';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { Permission } from '../auth/permissions';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { User } from '../generated/prisma/client';
 import { z } from 'zod';
@@ -28,33 +28,37 @@ export class TelematicsController {
   ) {}
 
   @Get('status')
+  @RequirePermissions(Permission.TELEMATICS_READ)
   getStatus() {
     return this.telematicsService.getStatus(this.scheduler.getMeta());
   }
 
   @Get('map')
+  @RequirePermissions(Permission.TELEMATICS_READ)
   getMap() {
     return this.telematicsService.getMapAssets();
   }
 
   @Post('sync')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.FLEET_MANAGER)
+  @RequirePermissions(Permission.TELEMATICS_SYNC)
   syncFleet() {
     return this.telematicsService.syncFleet('manual');
   }
 
   @Post('vehicles/:id/sync')
+  @RequirePermissions(Permission.TELEMATICS_SYNC)
   syncVehicle(@Param('id', ParseUUIDPipe) id: string) {
     return this.telematicsService.syncVehicle(id);
   }
 
   @Get('vehicles/:id')
+  @RequirePermissions(Permission.TELEMATICS_READ)
   getVehicle(@Param('id', ParseUUIDPipe) id: string) {
     return this.telematicsService.getVehicleTelematics(id);
   }
 
   @Post('vehicles/:id/immobilize')
-  @Roles(Role.SUPER_ADMIN)
+  @RequirePermissions(Permission.TELEMATICS_IMMOBILIZE)
   immobilize(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(immobilizeSchema))

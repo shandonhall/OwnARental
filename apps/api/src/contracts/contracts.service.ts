@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,10 +19,23 @@ import {
   withFinanceSummary,
 } from '../finance/finance.utils';
 import {
+  assertCompleteBreakdownMatchesAllIn,
+  componentsFromDto,
+  moneyOrNull,
+  PHASE1A_MONEY_KEYS,
+} from './contracts.phase1a';
+import {
   CreateContractDto,
   ListContractsQuery,
   UpdateContractDto,
 } from './contracts.schemas';
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2002'
+  );
+}
 
 function eachMonthStart(from: Date, to: Date): Date[] {
   const months: Date[] = [];
@@ -34,10 +48,7 @@ function eachMonthStart(from: Date, to: Date): Date[] {
   return months;
 }
 
-function dueInMonth(
-  due: Date | null | undefined,
-  monthStart: Date,
-): boolean {
+function dueInMonth(due: Date | null | undefined, monthStart: Date): boolean {
   if (!due) return false;
   return (
     due.getFullYear() === monthStart.getFullYear() &&
@@ -56,6 +67,27 @@ export class ContractsService {
       orderBy: [{ dueDate: 'asc' as const }, { createdAt: 'asc' as const }],
     },
   };
+
+  private phase1aMoneyData(
+    data: CreateContractDto | UpdateContractDto,
+    mode: 'create' | 'update',
+  ): Partial<
+    Record<(typeof PHASE1A_MONEY_KEYS)[number], Prisma.Decimal | null>
+  > {
+    const out: Partial<
+      Record<(typeof PHASE1A_MONEY_KEYS)[number], Prisma.Decimal | null>
+    > = {};
+    for (const key of PHASE1A_MONEY_KEYS) {
+      if (mode === 'create') {
+        if (data[key] !== undefined) {
+          out[key] = moneyOrNull(data[key]);
+        }
+      } else if (Object.prototype.hasOwnProperty.call(data, key)) {
+        out[key] = moneyOrNull(data[key]);
+      }
+    }
+    return out;
+  }
 
   async recalculateBalances(contractId: string) {
     const contract = await this.prisma.contract.findUnique({
@@ -119,7 +151,19 @@ export class ContractsService {
 
     const cipPercent =
       data.cipPercent ??
-      (data.planType === 'CIP_10' ? 10 : data.planType === 'CIP_20' ? 20 : null);
+      (data.planType === 'CIP_10'
+        ? 10
+        : data.planType === 'CIP_20'
+          ? 20
+          : null);
+
+    try {
+      assertCompleteBreakdownMatchesAllIn(monthlyRate, componentsFromDto(data));
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Invalid pricing breakdown',
+      );
+    }
 
     const expectedTotal = expectedContractTotal({
       monthlyRate,
@@ -129,45 +173,65 @@ export class ContractsService {
     });
 
     const status = data.status ?? ContractStatus.DRAFT;
+    const phase1aMoney = this.phase1aMoneyData(data, 'create');
 
-    const contract = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.contract.create({
-        data: {
-          clientId: data.clientId,
-          vehicleId: data.vehicleId,
-          planType: data.planType,
-          status,
-          termMonths: data.termMonths,
-          monthlyRate,
-          depositAmount,
-          balloonAmount,
-          cipPercent,
-          startDate,
-          endDate,
-          monthlyKmLimit: data.monthlyKmLimit ?? null,
-          notes: data.notes ?? null,
-          totalPaid: 0,
-          outstandingBalance: expectedTotal,
-        },
-        include: this.contractInclude,
+    try {
+      const contract = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.contract.create({
+          data: {
+            clientId: data.clientId,
+            vehicleId: data.vehicleId,
+            agreementNumber: data.agreementNumber ?? null,
+            planType: data.planType,
+            status,
+            termMonths: data.termMonths,
+            monthlyRate,
+            depositAmount,
+            balloonAmount,
+            cipPercent,
+            startDate,
+            endDate,
+            monthlyKmLimit: data.monthlyKmLimit ?? null,
+            annualKmLimit: data.annualKmLimit ?? null,
+            rentalDueDay: data.rentalDueDay ?? null,
+            vehicleKeptAddress: data.vehicleKeptAddress ?? null,
+            lifeInsuranceAccepted: data.lifeInsuranceAccepted ?? null,
+            initialRegistrationComplete:
+              data.initialRegistrationComplete ?? null,
+            initialLicensingComplete: data.initialLicensingComplete ?? null,
+            insuranceComplete: data.insuranceComplete ?? null,
+            notes: data.notes ?? null,
+            totalPaid: 0,
+            outstandingBalance: expectedTotal,
+            ...phase1aMoney,
+          },
+          include: this.contractInclude,
+        });
+
+        if (
+          status === ContractStatus.ACTIVE ||
+          status === ContractStatus.ARREARS
+        ) {
+          await tx.vehicle.update({
+            where: { id: data.vehicleId },
+            data: {
+              status: status === ContractStatus.ARREARS ? 'ARREARS' : 'ACTIVE',
+            },
+          });
+        }
+
+        return created;
       });
 
-      if (
-        status === ContractStatus.ACTIVE ||
-        status === ContractStatus.ARREARS
-      ) {
-        await tx.vehicle.update({
-          where: { id: data.vehicleId },
-          data: {
-            status: status === ContractStatus.ARREARS ? 'ARREARS' : 'ACTIVE',
-          },
-        });
+      return withFinanceSummary(contract);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(
+          'A contract with this agreement number already exists',
+        );
       }
-
-      return created;
-    });
-
-    return withFinanceSummary(contract);
+      throw error;
+    }
   }
 
   async findAll(query: ListContractsQuery) {
@@ -179,6 +243,12 @@ export class ContractsService {
         ...(query.search
           ? {
               OR: [
+                {
+                  agreementNumber: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
                 {
                   client: {
                     firstName: { contains: query.search, mode: 'insensitive' },
@@ -230,7 +300,7 @@ export class ContractsService {
     const monthlyRate =
       data.monthlyRate !== undefined
         ? new Prisma.Decimal(data.monthlyRate)
-        : undefined;
+        : new Prisma.Decimal(existing.monthlyRate);
     const depositAmount =
       data.depositAmount !== undefined
         ? new Prisma.Decimal(data.depositAmount ?? 0)
@@ -242,49 +312,134 @@ export class ContractsService {
           : new Prisma.Decimal(data.balloonAmount)
         : undefined;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.contract.update({
-        where: { id },
-        data: {
-          ...(data.planType ? { planType: data.planType } : {}),
-          ...(data.status ? { status: data.status } : {}),
-          ...(data.termMonths !== undefined
-            ? { termMonths: data.termMonths }
-            : {}),
-          ...(monthlyRate ? { monthlyRate } : {}),
-          ...(depositAmount ? { depositAmount } : {}),
-          ...(balloonAmount !== undefined ? { balloonAmount } : {}),
-          ...(data.cipPercent !== undefined
-            ? { cipPercent: data.cipPercent }
-            : {}),
-          ...(data.startDate ? { startDate: data.startDate } : {}),
-          ...(data.endDate ? { endDate: data.endDate } : {}),
-          ...(data.monthlyKmLimit !== undefined
-            ? { monthlyKmLimit: data.monthlyKmLimit }
-            : {}),
-          ...(data.notes !== undefined ? { notes: data.notes } : {}),
-        },
-      });
+    const mergedComponents = {
+      vehicleRentalAmount:
+        data.vehicleRentalAmount !== undefined
+          ? data.vehicleRentalAmount
+          : existing.vehicleRentalAmount,
+      administrationAmount:
+        data.administrationAmount !== undefined
+          ? data.administrationAmount
+          : existing.administrationAmount,
+      warrantyAmount:
+        data.warrantyAmount !== undefined
+          ? data.warrantyAmount
+          : existing.warrantyAmount,
+      servicePlanAmount:
+        data.servicePlanAmount !== undefined
+          ? data.servicePlanAmount
+          : existing.servicePlanAmount,
+      trackingAmount:
+        data.trackingAmount !== undefined
+          ? data.trackingAmount
+          : existing.trackingAmount,
+      licenceFeeAmount:
+        data.licenceFeeAmount !== undefined
+          ? data.licenceFeeAmount
+          : existing.licenceFeeAmount,
+      insuranceAmount:
+        data.insuranceAmount !== undefined
+          ? data.insuranceAmount
+          : existing.insuranceAmount,
+      lifeInsuranceAmount:
+        data.lifeInsuranceAmount !== undefined
+          ? data.lifeInsuranceAmount
+          : existing.lifeInsuranceAmount,
+      otherMonthlyAmount:
+        data.otherMonthlyAmount !== undefined
+          ? data.otherMonthlyAmount
+          : existing.otherMonthlyAmount,
+    };
 
-      if (data.status === ContractStatus.ACTIVE) {
-        await tx.vehicle.update({
-          where: { id: existing.vehicleId },
-          data: { status: 'ACTIVE' },
+    try {
+      assertCompleteBreakdownMatchesAllIn(monthlyRate, mergedComponents);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Invalid pricing breakdown',
+      );
+    }
+
+    const phase1aMoney = this.phase1aMoneyData(data, 'update');
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.contract.update({
+          where: { id },
+          data: {
+            ...(data.agreementNumber !== undefined
+              ? { agreementNumber: data.agreementNumber }
+              : {}),
+            ...(data.planType ? { planType: data.planType } : {}),
+            ...(data.status ? { status: data.status } : {}),
+            ...(data.termMonths !== undefined
+              ? { termMonths: data.termMonths }
+              : {}),
+            ...(data.monthlyRate !== undefined ? { monthlyRate } : {}),
+            ...(depositAmount ? { depositAmount } : {}),
+            ...(balloonAmount !== undefined ? { balloonAmount } : {}),
+            ...(data.cipPercent !== undefined
+              ? { cipPercent: data.cipPercent }
+              : {}),
+            ...(data.startDate ? { startDate: data.startDate } : {}),
+            ...(data.endDate ? { endDate: data.endDate } : {}),
+            ...(data.monthlyKmLimit !== undefined
+              ? { monthlyKmLimit: data.monthlyKmLimit }
+              : {}),
+            ...(data.annualKmLimit !== undefined
+              ? { annualKmLimit: data.annualKmLimit }
+              : {}),
+            ...(data.rentalDueDay !== undefined
+              ? { rentalDueDay: data.rentalDueDay }
+              : {}),
+            ...(data.vehicleKeptAddress !== undefined
+              ? { vehicleKeptAddress: data.vehicleKeptAddress }
+              : {}),
+            ...(data.lifeInsuranceAccepted !== undefined
+              ? { lifeInsuranceAccepted: data.lifeInsuranceAccepted }
+              : {}),
+            ...(data.initialRegistrationComplete !== undefined
+              ? {
+                  initialRegistrationComplete: data.initialRegistrationComplete,
+                }
+              : {}),
+            ...(data.initialLicensingComplete !== undefined
+              ? { initialLicensingComplete: data.initialLicensingComplete }
+              : {}),
+            ...(data.insuranceComplete !== undefined
+              ? { insuranceComplete: data.insuranceComplete }
+              : {}),
+            ...(data.notes !== undefined ? { notes: data.notes } : {}),
+            ...phase1aMoney,
+          },
         });
+
+        if (data.status === ContractStatus.ACTIVE) {
+          await tx.vehicle.update({
+            where: { id: existing.vehicleId },
+            data: { status: 'ACTIVE' },
+          });
+        }
+        if (data.status === ContractStatus.ARREARS) {
+          await tx.vehicle.update({
+            where: { id: existing.vehicleId },
+            data: { status: 'ARREARS' },
+          });
+        }
+        if (data.status === ContractStatus.COMPLETED) {
+          await tx.vehicle.update({
+            where: { id: existing.vehicleId },
+            data: { status: 'PAID_UP' },
+          });
+        }
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(
+          'A contract with this agreement number already exists',
+        );
       }
-      if (data.status === ContractStatus.ARREARS) {
-        await tx.vehicle.update({
-          where: { id: existing.vehicleId },
-          data: { status: 'ARREARS' },
-        });
-      }
-      if (data.status === ContractStatus.COMPLETED) {
-        await tx.vehicle.update({
-          where: { id: existing.vehicleId },
-          data: { status: 'PAID_UP' },
-        });
-      }
-    });
+      throw error;
+    }
 
     const refreshed = await this.recalculateBalances(id);
     return withFinanceSummary(refreshed);
@@ -340,12 +495,14 @@ export class ContractsService {
       periodMode && from && to ? eachMonthStart(from, to) : [];
 
     return vehicles.map((vehicle) => {
-      const allLedger = vehicle.contracts.flatMap((contract) => contract.ledger);
+      const allLedger = vehicle.contracts.flatMap(
+        (contract) => contract.ledger,
+      );
       const periodLedger = periodMode
         ? allLedger.filter(inRangeByDue)
         : allLedger;
 
-      let rentalIncome = sumPaidIncome(periodLedger);
+      const rentalIncome = sumPaidIncome(periodLedger);
       let outstandingIncome = sumOutstandingIncome(periodLedger);
       let expectedIncome = sumExpectedIncome(periodLedger);
 
@@ -472,11 +629,7 @@ export class ContractsService {
 
     for (let i = count - 1; i >= 0; i -= 1) {
       const from = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const to = new Date(
-        now.getFullYear(),
-        now.getMonth() - i + 1,
-        0,
-      );
+      const to = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
       const fromStr = from.toISOString().slice(0, 10);
       const toStr = to.toISOString().slice(0, 10);
       const rows = await this.profitability({ from: fromStr, to: toStr });

@@ -10,7 +10,8 @@ import { ZodType } from 'zod';
 export class ZodValidationPipe implements PipeTransform {
   constructor(private readonly schema: ZodType) {}
 
-  transform(value: unknown, _metadata: ArgumentMetadata) {
+  transform(value: unknown, metadata: ArgumentMetadata) {
+    void metadata;
     const result = this.schema.safeParse(value);
     if (!result.success) {
       throw new BadRequestException({

@@ -4,7 +4,8 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, statusLabel } from '@/lib/api';
+import { api, hasPermission, statusLabel } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 import { PrimaryButton, SecondaryButton } from '@/components/form';
 import { useTableSort } from '@/lib/table-sort';
 
@@ -57,6 +58,15 @@ export default function MapPage() {
   const zoomToIdRef = useRef(zoomToId);
   selectedIdRef.current = selectedId;
   zoomToIdRef.current = zoomToId;
+
+  const me = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => api.getMe(),
+    retry: false,
+  });
+  const canSync = me.data
+    ? hasPermission(me.data.role, Permission.TELEMATICS_SYNC)
+    : false;
 
   const status = useQuery({
     queryKey: ['telematics-status'],
@@ -236,9 +246,11 @@ export default function MapPage() {
           >
             Refresh
           </SecondaryButton>
-          <PrimaryButton type="button" onClick={syncFleet} disabled={syncing}>
-            {syncing ? 'Syncing…' : 'Sync telematics'}
-          </PrimaryButton>
+          {canSync ? (
+            <PrimaryButton type="button" onClick={syncFleet} disabled={syncing}>
+              {syncing ? 'Syncing…' : 'Sync telematics'}
+            </PrimaryButton>
+          ) : null}
         </div>
       </div>
 

@@ -7,8 +7,17 @@ import {
   EndOfTermStage,
   FicaStatus,
   FineImportStatus,
+  LeadContactChannel,
+  LeadCreativeType,
+  LeadDisqualificationReason,
+  LeadLossSystem,
+  LeadLossReason,
+  LeadQualificationStatus,
+  LeadSource,
+  LeadStage,
   LedgerEntryStatus,
   LedgerEntryType,
+  LicenceRenewalStatus,
   PlanType,
   TelematicsEventType,
   VehicleStatus,
@@ -493,6 +502,26 @@ async function upsertContract(input: {
   depositAmount: number;
   balloonAmount?: number;
   cipPercent?: number;
+  agreementNumber?: string | null;
+  cipAmount?: number | null;
+  vehicleValue?: number | null;
+  initialOnRoadCosts?: number | null;
+  vehicleRentalAmount?: number | null;
+  administrationAmount?: number | null;
+  warrantyAmount?: number | null;
+  servicePlanAmount?: number | null;
+  trackingAmount?: number | null;
+  licenceFeeAmount?: number | null;
+  insuranceAmount?: number | null;
+  lifeInsuranceAmount?: number | null;
+  otherMonthlyAmount?: number | null;
+  annualKmLimit?: number | null;
+  rentalDueDay?: number | null;
+  vehicleKeptAddress?: string | null;
+  lifeInsuranceAccepted?: boolean | null;
+  initialRegistrationComplete?: boolean | null;
+  initialLicensingComplete?: boolean | null;
+  insuranceComplete?: boolean | null;
   startDate: Date;
   monthlyKmLimit: number;
   notes?: string;
@@ -531,6 +560,26 @@ async function upsertContract(input: {
     depositAmount: input.depositAmount,
     balloonAmount: input.balloonAmount ?? null,
     cipPercent: input.cipPercent ?? null,
+    agreementNumber: input.agreementNumber ?? null,
+    cipAmount: input.cipAmount ?? null,
+    vehicleValue: input.vehicleValue ?? null,
+    initialOnRoadCosts: input.initialOnRoadCosts ?? null,
+    vehicleRentalAmount: input.vehicleRentalAmount ?? null,
+    administrationAmount: input.administrationAmount ?? null,
+    warrantyAmount: input.warrantyAmount ?? null,
+    servicePlanAmount: input.servicePlanAmount ?? null,
+    trackingAmount: input.trackingAmount ?? null,
+    licenceFeeAmount: input.licenceFeeAmount ?? null,
+    insuranceAmount: input.insuranceAmount ?? null,
+    lifeInsuranceAmount: input.lifeInsuranceAmount ?? null,
+    otherMonthlyAmount: input.otherMonthlyAmount ?? null,
+    annualKmLimit: input.annualKmLimit ?? null,
+    rentalDueDay: input.rentalDueDay ?? null,
+    vehicleKeptAddress: input.vehicleKeptAddress ?? null,
+    lifeInsuranceAccepted: input.lifeInsuranceAccepted ?? null,
+    initialRegistrationComplete: input.initialRegistrationComplete ?? null,
+    initialLicensingComplete: input.initialLicensingComplete ?? null,
+    insuranceComplete: input.insuranceComplete ?? null,
     startDate: input.startDate,
     endDate,
     monthlyKmLimit: input.monthlyKmLimit,
@@ -631,7 +680,7 @@ async function main() {
     vehicleByReg[vehicle.registration] = await upsertVehicle(vehicle);
   }
 
-  // Lerato — active CIP 10% on Polo (8 months in)
+  // Lerato — active CIP 10% on Polo (8 months in) — complete Schedule A breakdown demo
   const poloStart = daysAgo(240);
   await upsertContract({
     clientId: clientByKey['8805125800183'].id,
@@ -642,9 +691,30 @@ async function main() {
     monthlyRate: 7200,
     depositAmount: 28000,
     cipPercent: 10,
+    agreementNumber: 'OAR72001 DEMOGP',
+    vehicleValue: 185000,
+    cipAmount: 18500,
+    initialOnRoadCosts: 4500,
+    // All-In 7200 = component sum (demo sample figures)
+    vehicleRentalAmount: 4800,
+    administrationAmount: 250,
+    warrantyAmount: 350,
+    servicePlanAmount: 450,
+    trackingAmount: 200,
+    licenceFeeAmount: 150,
+    insuranceAmount: 800,
+    lifeInsuranceAmount: 200,
+    otherMonthlyAmount: 0,
+    annualKmLimit: 30000,
+    rentalDueDay: 1,
+    vehicleKeptAddress: '14 Sample Avenue, Randburg, Gauteng',
+    lifeInsuranceAccepted: true,
+    initialRegistrationComplete: true,
+    initialLicensingComplete: true,
+    insuranceComplete: true,
     startDate: poloStart,
-    monthlyKmLimit: 3000,
-    notes: 'CIP 10% — good payer',
+    monthlyKmLimit: 2500,
+    notes: 'CIP 10% — Schedule A demo with full All-In breakdown',
     ledger: [
       {
         type: LedgerEntryType.DEPOSIT,
@@ -1071,6 +1141,131 @@ async function main() {
     ],
   });
 
+  // Phase 1C — demo licence renewal cycles only (no invented dates for production fleet).
+  // GP99STOCK intentionally has no licence record ("Licence information not captured").
+  const demoVehicleIds = Object.values(vehicleByReg).map((v) => v.id);
+  await prisma.licenceRenewal.deleteMany({
+    where: { vehicleId: { in: demoVehicleIds } },
+  });
+
+  const activeFor = async (registration: string) =>
+    prisma.contract.findFirst({
+      where: {
+        vehicleId: vehicleByReg[registration].id,
+        status: { in: [ContractStatus.ACTIVE, ContractStatus.ARREARS] },
+      },
+      select: { id: true, clientId: true },
+    });
+
+  const snapCA = await activeFor('CA123456');
+  const snapGP78 = await activeFor('GP78BCGP');
+  const snapFJ = await activeFor('FJ12KLM');
+  const snapGP45 = await activeFor('GP45XYZ');
+  const snapGP90 = await activeFor('GP90QRS');
+  const snapNJ = await activeFor('NJ33TUV');
+  const snapGP11 = await activeFor('GP11AAA');
+
+  const nextExpiryAfterComplete = dateOnly(120);
+
+  await prisma.licenceRenewal.createMany({
+    data: [
+      {
+        vehicleId: vehicleByReg.CA123456.id,
+        contractId: snapCA?.id ?? null,
+        clientId: snapCA?.clientId ?? null,
+        expiryDate: dateOnly(90),
+        status: LicenceRenewalStatus.OPEN,
+        notes: 'Demo: valid >60 days',
+      },
+      {
+        vehicleId: vehicleByReg.GP78BCGP.id,
+        contractId: snapGP78?.id ?? null,
+        clientId: snapGP78?.clientId ?? null,
+        expiryDate: dateOnly(60),
+        status: LicenceRenewalStatus.OPEN,
+        clientNotifiedAt: daysAgo(2),
+        notes: 'Demo: 60-day warning',
+      },
+      {
+        vehicleId: vehicleByReg.FJ12KLM.id,
+        contractId: snapFJ?.id ?? null,
+        clientId: snapFJ?.clientId ?? null,
+        expiryDate: dateOnly(15),
+        status: LicenceRenewalStatus.OPEN,
+        renewalCost: 1450,
+        notes: 'Demo: 30-day action window',
+      },
+      {
+        vehicleId: vehicleByReg.GP45XYZ.id,
+        contractId: snapGP45?.id ?? null,
+        clientId: snapGP45?.clientId ?? null,
+        expiryDate: dateOnly(-5),
+        status: LicenceRenewalStatus.OPEN,
+        renewalCost: 1520,
+        notes: 'Demo: expired',
+      },
+      {
+        vehicleId: vehicleByReg.GP90QRS.id,
+        contractId: snapGP90?.id ?? null,
+        clientId: snapGP90?.clientId ?? null,
+        expiryDate: dateOnly(25),
+        status: LicenceRenewalStatus.IN_PROGRESS,
+        renewalStartedAt: daysAgo(3),
+        renewalCost: 1400,
+        notes: 'Demo: in progress',
+      },
+      {
+        vehicleId: vehicleByReg.NJ33TUV.id,
+        contractId: snapNJ?.id ?? null,
+        clientId: snapNJ?.clientId ?? null,
+        expiryDate: dateOnly(20),
+        renewedExpiryDate: dateOnly(385),
+        status: LicenceRenewalStatus.RENEWED,
+        renewalStartedAt: daysAgo(10),
+        renewedAt: daysAgo(2),
+        renewalCost: 1480,
+        notes: 'Demo: renewed — awaiting disc',
+      },
+      {
+        vehicleId: vehicleByReg.GP11AAA.id,
+        contractId: snapGP11?.id ?? null,
+        clientId: snapGP11?.clientId ?? null,
+        expiryDate: dateOnly(10),
+        renewedExpiryDate: dateOnly(375),
+        status: LicenceRenewalStatus.RECEIVED,
+        renewalStartedAt: daysAgo(20),
+        renewedAt: daysAgo(8),
+        receivedAt: daysAgo(1),
+        renewalCost: 1510,
+        notes: 'Demo: disc received — ready to send/collect',
+      },
+      {
+        vehicleId: vehicleByReg.GP55EOT.id,
+        contractId: null,
+        clientId: null,
+        expiryDate: dateOnly(-400),
+        renewedExpiryDate: nextExpiryAfterComplete,
+        status: LicenceRenewalStatus.COMPLETED,
+        renewalStartedAt: daysAgo(430),
+        renewedAt: daysAgo(410),
+        receivedAt: daysAgo(405),
+        sentAt: daysAgo(402),
+        collectedAt: daysAgo(401),
+        renewalCost: 1399,
+        notes: 'Demo: completed historical cycle',
+      },
+      {
+        // Next OPEN cycle after completed historical — no client/contract inherit
+        vehicleId: vehicleByReg.GP55EOT.id,
+        contractId: null,
+        clientId: null,
+        expiryDate: nextExpiryAfterComplete,
+        status: LicenceRenewalStatus.OPEN,
+        notes: 'Demo: auto-next cycle after completed renewal',
+      },
+    ],
+  });
+
   console.log('Seeded demo data:');
   console.log(`  Clients  ${clients.length}`);
   console.log(`  Vehicles ${vehicles.length}`);
@@ -1079,6 +1274,478 @@ async function main() {
   );
   console.log(
     '  Pricing: contract schedules beat purchase capital (positive lifetime forecast)',
+  );
+  console.log(
+    '  Licences: urgency + workflow demos (GP99STOCK left uncaptured)',
+  );
+
+  // Phase 2A — fictional Lead CRM demos (no real prospect PII).
+  await prisma.leadStageHistory.deleteMany({});
+  await prisma.leadAssignment.deleteMany({});
+  await prisma.lead.deleteMany({});
+
+  const salesUser = await prisma.user.findFirst({
+    where: { email: 'sales@ownarental.co.za' },
+    select: { id: true },
+  });
+  const managerUser = await prisma.user.findFirst({
+    where: { email: 'manager@ownarental.co.za' },
+    select: { id: true },
+  });
+  const salesId = salesUser?.id ?? null;
+  const managerId = managerUser?.id ?? null;
+
+  async function seedLead(input: {
+    firstName: string;
+    lastName: string;
+    cellphone: string;
+    email?: string;
+    source: (typeof LeadSource)[keyof typeof LeadSource];
+    creativeType: (typeof LeadCreativeType)[keyof typeof LeadCreativeType];
+    stage: (typeof LeadStage)[keyof typeof LeadStage];
+    qualificationStatus?: (typeof LeadQualificationStatus)[keyof typeof LeadQualificationStatus];
+    disqualificationReason?: (typeof LeadDisqualificationReason)[keyof typeof LeadDisqualificationReason];
+    lossReason?: (typeof LeadLossReason)[keyof typeof LeadLossReason];
+    campaignName?: string;
+    campaignId?: string;
+    externalLeadId?: string;
+    sourceCreatedAt?: Date;
+    assignedUserId?: string | null;
+    firstAttemptAt?: Date | null;
+    firstContactAt?: Date | null;
+    firstAttemptChannel?: (typeof LeadContactChannel)[keyof typeof LeadContactChannel];
+    firstContactChannel?: (typeof LeadContactChannel)[keyof typeof LeadContactChannel];
+    documentsReceivedAt?: Date | null;
+    closedAt?: Date | null;
+    notes?: string;
+    salaryBand?: string;
+    rentalType?: string;
+    vehicleNeededTiming?: string;
+    area?: string;
+    stagePath?: Array<(typeof LeadStage)[keyof typeof LeadStage]>;
+    duplicateOfLeadId?: string;
+  }) {
+    const assignedAt = input.assignedUserId ? daysAgo(2) : null;
+    const lead = await prisma.lead.create({
+      data: {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        cellphone: input.cellphone,
+        email: input.email ?? null,
+        area: input.area ?? 'Johannesburg',
+        salaryBand: input.salaryBand ?? null,
+        rentalType: input.rentalType ?? 'Rent to own',
+        vehicleNeededTiming: input.vehicleNeededTiming ?? 'ASAP',
+        vehiclePreference: 'Hatchback / sedan',
+        hasValidDriversLicence: true,
+        source: input.source,
+        platform: input.source === LeadSource.META_LEAD_FORM ? 'META' : null,
+        creativeType: input.creativeType,
+        creativeLabel:
+          input.creativeType === LeadCreativeType.VIDEO
+            ? 'Demo video A'
+            : input.creativeType === LeadCreativeType.GRAPHIC
+              ? 'Demo graphic B'
+              : null,
+        campaignId: input.campaignId ?? null,
+        campaignName: input.campaignName ?? null,
+        externalLeadId: input.externalLeadId ?? null,
+        sourceCreatedAt: input.sourceCreatedAt ?? null,
+        stage: input.stage,
+        qualificationStatus:
+          input.qualificationStatus ?? LeadQualificationStatus.UNASSESSED,
+        disqualificationReason: input.disqualificationReason ?? null,
+        lossReason: input.lossReason ?? null,
+        assignedUserId: input.assignedUserId ?? null,
+        assignedAt,
+        firstAttemptAt: input.firstAttemptAt ?? null,
+        firstAttemptChannel: input.firstAttemptChannel ?? null,
+        firstContactAt: input.firstContactAt ?? null,
+        firstContactChannel: input.firstContactChannel ?? null,
+        lastContactAt:
+          input.firstContactAt ?? input.firstAttemptAt ?? null,
+        documentsReceivedAt: input.documentsReceivedAt ?? null,
+        closedAt: input.closedAt ?? null,
+        notes: input.notes ?? null,
+        deliverySystem: 'NONE',
+        duplicateOfLeadId: input.duplicateOfLeadId ?? null,
+        createdByUserId: managerId,
+      },
+    });
+
+    const path = input.stagePath ?? [LeadStage.NEW, input.stage];
+    let prev: (typeof LeadStage)[keyof typeof LeadStage] | null = null;
+    for (const to of path) {
+      if (prev === to) continue;
+      await prisma.leadStageHistory.create({
+        data: {
+          leadId: lead.id,
+          fromStage: prev,
+          toStage: to,
+          actorUserId: managerId,
+          changedAt: daysAgo(path.indexOf(to) === 0 ? 5 : 3),
+        },
+      });
+      prev = to;
+    }
+
+    if (input.assignedUserId) {
+      await prisma.leadAssignment.create({
+        data: {
+          leadId: lead.id,
+          userId: input.assignedUserId,
+          assignedAt: assignedAt ?? daysAgo(2),
+          assignedByUserId: managerId,
+          reason: 'Demo seed assignment',
+        },
+      });
+    }
+
+    return lead;
+  }
+
+  const videoQualified = await seedLead({
+    firstName: 'Lebo',
+    lastName: 'Dlamini',
+    cellphone: '0820001001',
+    email: 'lebo.demo@example.com',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.VIDEO,
+    campaignId: 'camp-video-1',
+    campaignName: 'OAR Video Test Sep',
+    externalLeadId: 'meta-demo-video-001',
+    sourceCreatedAt: daysAgo(3),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(3 - 2 / 24),
+    firstContactAt: daysAgo(3 - 3 / 24),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    firstContactChannel: LeadContactChannel.WHATSAPP,
+    stage: LeadStage.QUALIFYING,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    stagePath: [LeadStage.NEW, LeadStage.CONTACTED, LeadStage.QUALIFYING],
+    notes: 'Demo: VIDEO qualified fast response',
+    salaryBand: 'R15k–R25k',
+  });
+
+  await seedLead({
+    firstName: 'Sipho',
+    lastName: 'Ndlovu',
+    cellphone: '0820001002',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.VIDEO,
+    campaignId: 'camp-video-1',
+    campaignName: 'OAR Video Test Sep',
+    externalLeadId: 'meta-demo-video-002',
+    sourceCreatedAt: daysAgo(4),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(3),
+    firstContactAt: daysAgo(3),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    firstContactChannel: LeadContactChannel.PHONE,
+    stage: LeadStage.CLOSED_LOST,
+    qualificationStatus: LeadQualificationStatus.UNQUALIFIED,
+    disqualificationReason: LeadDisqualificationReason.UBER_BOLT,
+    lossReason: LeadLossReason.OTHER,
+    closedAt: daysAgo(2),
+    stagePath: [LeadStage.NEW, LeadStage.CONTACTED, LeadStage.CLOSED_LOST],
+    notes: 'Demo: VIDEO unqualified Uber/Bolt',
+  });
+
+  await seedLead({
+    firstName: 'Aisha',
+    lastName: 'Patel',
+    cellphone: '0820001003',
+    email: 'aisha.demo@example.com',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.GRAPHIC,
+    campaignId: 'camp-graphic-1',
+    campaignName: 'OAR Graphic Test Sep',
+    externalLeadId: 'meta-demo-graphic-001',
+    sourceCreatedAt: daysAgo(5),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(4),
+    firstContactAt: daysAgo(3.5),
+    firstAttemptChannel: LeadContactChannel.WHATSAPP,
+    firstContactChannel: LeadContactChannel.WHATSAPP,
+    stage: LeadStage.QUALIFYING,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    stagePath: [LeadStage.NEW, LeadStage.CONTACTED, LeadStage.QUALIFYING],
+    notes: 'Demo: GRAPHIC qualified slower response',
+    salaryBand: 'R20k–R30k',
+  });
+
+  await seedLead({
+    firstName: 'Johan',
+    lastName: 'Botha',
+    cellphone: '0820001004',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.GRAPHIC,
+    campaignId: 'camp-graphic-1',
+    campaignName: 'OAR Graphic Test Sep',
+    externalLeadId: 'meta-demo-graphic-002',
+    sourceCreatedAt: daysAgo(6),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(5),
+    firstContactAt: daysAgo(5),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    firstContactChannel: LeadContactChannel.PHONE,
+    stage: LeadStage.CLOSED_LOST,
+    qualificationStatus: LeadQualificationStatus.UNQUALIFIED,
+    disqualificationReason: LeadDisqualificationReason.AFFORDABILITY,
+    lossReason: LeadLossReason.OTHER,
+    closedAt: daysAgo(4),
+    stagePath: [LeadStage.NEW, LeadStage.CONTACTED, LeadStage.CLOSED_LOST],
+    notes: 'Demo: GRAPHIC affordability-unqualified',
+  });
+
+  await seedLead({
+    firstName: 'Nomsa',
+    lastName: 'Khumalo',
+    cellphone: '0820001005',
+    source: LeadSource.MANUAL,
+    creativeType: LeadCreativeType.UNKNOWN,
+    stage: LeadStage.NEW,
+    notes: 'Demo: UNKNOWN/manual unassigned',
+  });
+
+  await seedLead({
+    firstName: 'Pieter',
+    lastName: 'Venter',
+    cellphone: '0820001006',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.VIDEO,
+    campaignName: 'OAR Video Test Sep',
+    externalLeadId: 'meta-demo-video-003',
+    sourceCreatedAt: daysAgo(1),
+    assignedUserId: salesId,
+    stage: LeadStage.NEW,
+    notes: 'Demo: assigned but not attempted',
+  });
+
+  await seedLead({
+    firstName: 'Fatima',
+    lastName: 'Hassan',
+    cellphone: '0820001007',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.GRAPHIC,
+    campaignName: 'OAR Graphic Test Sep',
+    externalLeadId: 'meta-demo-graphic-003',
+    sourceCreatedAt: daysAgo(2),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(1),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    stage: LeadStage.NEW,
+    notes: 'Demo: attempted, no successful contact yet',
+  });
+
+  await seedLead({
+    firstName: 'Grace',
+    lastName: 'Molefe',
+    cellphone: '0820001008',
+    source: LeadSource.WEBSITE,
+    creativeType: LeadCreativeType.UNKNOWN,
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(4),
+    firstContactAt: daysAgo(4),
+    firstAttemptChannel: LeadContactChannel.EMAIL,
+    firstContactChannel: LeadContactChannel.EMAIL,
+    stage: LeadStage.DOCUMENTS_REQUESTED,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    stagePath: [
+      LeadStage.NEW,
+      LeadStage.CONTACTED,
+      LeadStage.QUALIFYING,
+      LeadStage.DOCUMENTS_REQUESTED,
+    ],
+    notes: 'Demo: documents requested',
+  });
+
+  await seedLead({
+    firstName: 'Kevin',
+    lastName: 'Naidoo',
+    cellphone: '0820001009',
+    source: LeadSource.PHONE_IN,
+    creativeType: LeadCreativeType.UNKNOWN,
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(6),
+    firstContactAt: daysAgo(6),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    firstContactChannel: LeadContactChannel.PHONE,
+    documentsReceivedAt: daysAgo(2),
+    stage: LeadStage.DOCUMENTS_REQUESTED,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    stagePath: [
+      LeadStage.NEW,
+      LeadStage.CONTACTED,
+      LeadStage.QUALIFYING,
+      LeadStage.DOCUMENTS_REQUESTED,
+    ],
+    notes: 'Demo: documents received',
+  });
+
+  await seedLead({
+    firstName: 'Thandi',
+    lastName: 'Zulu',
+    cellphone: '0820001010',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.VIDEO,
+    campaignName: 'OAR Video Test Sep',
+    externalLeadId: 'meta-demo-video-004',
+    sourceCreatedAt: daysAgo(10),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(9),
+    firstContactAt: daysAgo(9),
+    firstAttemptChannel: LeadContactChannel.WHATSAPP,
+    firstContactChannel: LeadContactChannel.WHATSAPP,
+    documentsReceivedAt: daysAgo(5),
+    stage: LeadStage.APPLICATION_SUBMITTED,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    stagePath: [
+      LeadStage.NEW,
+      LeadStage.CONTACTED,
+      LeadStage.QUALIFYING,
+      LeadStage.DOCUMENTS_REQUESTED,
+      LeadStage.APPLICATION_SUBMITTED,
+    ],
+    notes: 'Demo: application submitted',
+  });
+
+  await seedLead({
+    firstName: 'Andile',
+    lastName: 'Sithole',
+    cellphone: '0820001011',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.GRAPHIC,
+    campaignName: 'OAR Graphic Test Sep',
+    externalLeadId: 'meta-demo-graphic-004',
+    sourceCreatedAt: daysAgo(14),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(13),
+    firstContactAt: daysAgo(13),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    firstContactChannel: LeadContactChannel.PHONE,
+    documentsReceivedAt: daysAgo(8),
+    stage: LeadStage.APPROVED,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    stagePath: [
+      LeadStage.NEW,
+      LeadStage.CONTACTED,
+      LeadStage.QUALIFYING,
+      LeadStage.DOCUMENTS_REQUESTED,
+      LeadStage.APPLICATION_SUBMITTED,
+      LeadStage.APPROVED,
+    ],
+    notes: 'Demo: approved',
+  });
+
+  await seedLead({
+    firstName: 'Carla',
+    lastName: 'Meyer',
+    cellphone: '0820001012',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.VIDEO,
+    campaignName: 'OAR Video Test Sep',
+    externalLeadId: 'meta-demo-video-005',
+    sourceCreatedAt: daysAgo(20),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(19),
+    firstContactAt: daysAgo(19),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    firstContactChannel: LeadContactChannel.WHATSAPP,
+    documentsReceivedAt: daysAgo(12),
+    stage: LeadStage.VEHICLE_SELECTED,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    stagePath: [
+      LeadStage.NEW,
+      LeadStage.CONTACTED,
+      LeadStage.QUALIFYING,
+      LeadStage.DOCUMENTS_REQUESTED,
+      LeadStage.APPLICATION_SUBMITTED,
+      LeadStage.APPROVED,
+      LeadStage.VEHICLE_SELECTED,
+    ],
+    notes: 'Demo: vehicle selected',
+  });
+
+  await seedLead({
+    firstName: 'David',
+    lastName: 'Govender',
+    cellphone: '0820001013',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.GRAPHIC,
+    campaignName: 'OAR Graphic Test Sep',
+    externalLeadId: 'meta-demo-graphic-005',
+    sourceCreatedAt: daysAgo(30),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(29),
+    firstContactAt: daysAgo(29),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    firstContactChannel: LeadContactChannel.PHONE,
+    documentsReceivedAt: daysAgo(20),
+    closedAt: daysAgo(2),
+    stage: LeadStage.CLOSED_WON,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    stagePath: [
+      LeadStage.NEW,
+      LeadStage.CONTACTED,
+      LeadStage.QUALIFYING,
+      LeadStage.DOCUMENTS_REQUESTED,
+      LeadStage.APPLICATION_SUBMITTED,
+      LeadStage.APPROVED,
+      LeadStage.VEHICLE_SELECTED,
+      LeadStage.CLOSED_WON,
+    ],
+    notes: 'Demo: closed won',
+  });
+
+  await seedLead({
+    firstName: 'Ellen',
+    lastName: 'Radebe',
+    cellphone: '0820001014',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.VIDEO,
+    campaignName: 'OAR Video Test Sep',
+    externalLeadId: 'meta-demo-video-006',
+    sourceCreatedAt: daysAgo(18),
+    assignedUserId: salesId,
+    firstAttemptAt: daysAgo(17),
+    firstContactAt: daysAgo(17),
+    firstAttemptChannel: LeadContactChannel.PHONE,
+    firstContactChannel: LeadContactChannel.PHONE,
+    documentsReceivedAt: daysAgo(10),
+    closedAt: daysAgo(1),
+    stage: LeadStage.CLOSED_LOST,
+    qualificationStatus: LeadQualificationStatus.QUALIFIED,
+    lossReason: LeadLossReason.APPLICATION_DECLINED,
+    stagePath: [
+      LeadStage.NEW,
+      LeadStage.CONTACTED,
+      LeadStage.QUALIFYING,
+      LeadStage.DOCUMENTS_REQUESTED,
+      LeadStage.APPLICATION_SUBMITTED,
+      LeadStage.CLOSED_LOST,
+    ],
+    notes: 'Demo: closed lost after QUALIFIED (application declined)',
+  });
+
+  await seedLead({
+    firstName: 'Lebo',
+    lastName: 'Dlamini',
+    cellphone: '0820001001',
+    email: 'lebo.demo@example.com',
+    source: LeadSource.META_LEAD_FORM,
+    creativeType: LeadCreativeType.GRAPHIC,
+    campaignId: 'camp-graphic-2',
+    campaignName: 'OAR Graphic Retarget',
+    externalLeadId: 'meta-demo-graphic-dup-001',
+    sourceCreatedAt: daysAgo(1),
+    stage: LeadStage.NEW,
+    duplicateOfLeadId: videoQualified.id,
+    notes: 'Demo: duplicate-person second acquisition (GRAPHIC campaign)',
+  });
+
+  console.log(
+    '  Leads: VIDEO/GRAPHIC funnel demos + assignment/stage history',
   );
   console.log('  Extras: service due, rule breaches, fine imports, stock unit');
 }

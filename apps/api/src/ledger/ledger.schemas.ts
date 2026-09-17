@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import {
-  LedgerEntryStatus,
-  LedgerEntryType,
-} from '../generated/prisma/enums';
+import { LedgerEntryStatus, LedgerEntryType } from '../generated/prisma/enums';
 
 const emptyToNull = (value: unknown) =>
   value === '' || value === undefined ? null : value;

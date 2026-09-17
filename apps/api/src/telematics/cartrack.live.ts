@@ -27,7 +27,11 @@ export class LiveCarTrackProvider implements CarTrackProvider {
     };
   }
 
-  async fetchSnapshot(deviceId: string, _context?: SnapshotContext): Promise<CarTrackSnapshot> {
+  async fetchSnapshot(
+    deviceId: string,
+    context?: SnapshotContext,
+  ): Promise<CarTrackSnapshot> {
+    void context;
     const response = await fetch(
       `${this.baseUrl.replace(/\/$/, '')}/devices/${encodeURIComponent(deviceId)}/telemetry`,
       { headers: this.headers() },
@@ -188,22 +192,28 @@ function parseBreaches(body: Record<string, unknown>): RuleBreach[] {
     const record = asRecord(item);
     if (!record) continue;
 
-    const type = String(
-      record.type ?? record.code ?? record.event ?? record.kind ?? '',
+    const type = asDisplayString(
+      record.type ?? record.code ?? record.event ?? record.kind,
     ).toUpperCase();
     if (!type) continue;
 
     // Skip non-breach telemetry events when provider reuses an events array.
     if (
-      ['LOCATION', 'ODOMETER', 'MILEAGE', 'SYNC', 'TELEMETRY', 'HEARTBEAT'].includes(
-        type,
-      )
+      [
+        'LOCATION',
+        'ODOMETER',
+        'MILEAGE',
+        'SYNC',
+        'TELEMETRY',
+        'HEARTBEAT',
+      ].includes(type)
     ) {
       continue;
     }
 
-    const severityRaw = String(
-      record.severity ?? record.level ?? 'medium',
+    const severityRaw = asDisplayString(
+      record.severity ?? record.level,
+      'medium',
     ).toLowerCase();
     const severity: RuleBreach['severity'] =
       severityRaw === 'high' || severityRaw === 'critical'
@@ -215,8 +225,9 @@ function parseBreaches(body: Record<string, unknown>): RuleBreach[] {
     breaches.push({
       code: type.slice(0, 64),
       severity,
-      message: String(
-        record.message ?? record.description ?? record.detail ?? type,
+      message: asDisplayString(
+        record.message ?? record.description ?? record.detail,
+        type,
       ).slice(0, 500),
       occurredAt:
         parseDate(record.occurredAt ?? record.timestamp ?? record.at) ??
@@ -232,6 +243,17 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     return value as Record<string, unknown>;
   }
   return null;
+}
+
+function asDisplayString(value: unknown, fallback = ''): string {
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return String(value);
+  }
+  return fallback;
 }
 
 function firstFinite(...candidates: unknown[]): number | null {

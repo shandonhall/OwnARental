@@ -15,13 +15,15 @@ import {
 } from '@/components/form';
 import {
   api,
+  hasPermission,
   LedgerEntryStatus,
   LedgerEntryType,
 } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 import { useTableSort } from '@/lib/table-sort';
-import { formatMoney, moneyCellClass } from '@/lib/format-money';
+import { formatMoney } from '@/lib/format-money';
 
-function money(value: string | number) {
+function money(value: string | number | null | undefined) {
   return formatMoney(value);
 }
 
@@ -72,6 +74,19 @@ export default function ContractDetailPage() {
     queryFn: () => api.getContract(params.id),
     enabled: Boolean(params.id),
   });
+
+  const me = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => api.getMe(),
+    retry: false,
+  });
+  const canWrite = me.data
+    ? hasPermission(me.data.role, Permission.CONTRACTS_WRITE)
+    : false;
+  const canFinanceWrite = me.data
+    ? hasPermission(me.data.role, Permission.FINANCE_WRITE)
+    : false;
+  const financeRestricted = Boolean(query.data?.financeRestricted);
 
   const ledgerRows = useMemo(
     () => query.data?.ledger ?? [],
@@ -144,7 +159,28 @@ export default function ContractDetailPage() {
         <p className="mt-1 text-slate-600 dark:text-slate-300">
           {contract.vehicle.year} {contract.vehicle.make}{' '}
           {contract.vehicle.model} · {contract.vehicle.registration}
+          {contract.agreementNumber ? (
+            <>
+              {' '}
+              · <span className="font-mono">{contract.agreementNumber}</span>
+            </>
+          ) : null}
         </p>
+        <div className="mt-3">
+          {canWrite ? (
+            <Link
+              href={`/contracts/${contract.id}/edit`}
+              className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
+            >
+              Edit contract
+            </Link>
+          ) : null}
+        </div>
+        {financeRestricted ? (
+          <p className="mt-3 text-sm text-brand-grey">
+            Schedule A commercial amounts are restricted for your role.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -197,7 +233,7 @@ export default function ContractDetailPage() {
         </div>
         <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4">
           <p className="text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
-            Monthly rate
+            Rental Amount &quot;All In&quot;
           </p>
           <p className="mt-2 text-2xl text-navy">
             {money(contract.monthlyRate)}
@@ -205,6 +241,163 @@ export default function ContractDetailPage() {
           <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
             {contract.planType.replace('_', ' ')} · {contract.status}
           </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 text-sm">
+          <h2 className="mb-3 text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            Schedule A — terms &amp; value
+          </h2>
+          <dl className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-slate-500">Agreement number</dt>
+              <dd className="font-mono text-navy">
+                {contract.agreementNumber ?? '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Commencement → end</dt>
+              <dd className="text-navy">
+                {contract.startDate.slice(0, 10)} → {contract.endDate.slice(0, 10)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Vehicle value</dt>
+              <dd className="text-navy">
+                {contract.vehicleValue == null
+                  ? '—'
+                  : money(contract.vehicleValue)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">
+                CIP (non-refundable)
+              </dt>
+              <dd className="text-navy">
+                {contract.cipAmount == null ? '—' : money(contract.cipAmount)}
+                {contract.cipPercent != null
+                  ? ` · legacy ${contract.cipPercent}%`
+                  : ''}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Initial on-road costs</dt>
+              <dd className="text-navy">
+                {contract.initialOnRoadCosts == null
+                  ? '—'
+                  : money(contract.initialOnRoadCosts)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Rental due day</dt>
+              <dd className="text-navy">
+                {contract.rentalDueDay == null
+                  ? '—'
+                  : `Day ${contract.rentalDueDay}`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Annual km allowance</dt>
+              <dd className="text-navy">
+                {contract.annualKmLimit == null
+                  ? '—'
+                  : `${contract.annualKmLimit.toLocaleString('en-ZA')} km/year`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Monthly km limit</dt>
+              <dd className="text-navy">
+                {contract.monthlyKmLimit == null
+                  ? '—'
+                  : `${contract.monthlyKmLimit.toLocaleString('en-ZA')} km/month`}
+              </dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-xs text-slate-500">Vehicle kept address</dt>
+              <dd className="text-navy">
+                {contract.vehicleKeptAddress ?? '—'}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4 text-sm">
+          <h2 className="mb-3 text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            Monthly All-In breakdown
+          </h2>
+          {!contract.pricingBreakdownCaptured ? (
+            <p className="text-slate-600 dark:text-slate-300">
+              Pricing breakdown not captured
+            </p>
+          ) : (
+            <dl className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  ['Vehicle rental', contract.vehicleRentalAmount],
+                  ['Administration', contract.administrationAmount],
+                  ['Warranty', contract.warrantyAmount],
+                  ['We Care service plan', contract.servicePlanAmount],
+                  ['Tracking device', contract.trackingAmount],
+                  ['Licence fee / disc', contract.licenceFeeAmount],
+                  ['Insurance', contract.insuranceAmount],
+                  ['Life insurance', contract.lifeInsuranceAmount],
+                  ['Other monthly', contract.otherMonthlyAmount],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs text-slate-500">{label}</dt>
+                  <dd className="text-navy">
+                    {value == null ? '—' : money(value)}
+                  </dd>
+                </div>
+              ))}
+              <div className="sm:col-span-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                <dt className="text-xs text-slate-500">
+                  Calculated components total
+                </dt>
+                <dd className="text-navy">
+                  {contract.calculatedComponentsTotal == null
+                    ? '—'
+                    : money(contract.calculatedComponentsTotal)}
+                  {contract.componentsMatchMonthlyRate === false ? (
+                    <span className="ml-2 text-danger">
+                      Does not match All-In
+                    </span>
+                  ) : null}
+                  {contract.componentsMatchMonthlyRate === true ? (
+                    <span className="ml-2 text-success">Matches All-In</span>
+                  ) : null}
+                </dd>
+              </div>
+            </dl>
+          )}
+          <h3 className="mb-2 mt-4 text-xs uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            Onboarding
+          </h3>
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ['Life insurance accepted', contract.lifeInsuranceAccepted],
+                [
+                  'Initial registration complete',
+                  contract.initialRegistrationComplete,
+                ],
+                [
+                  'Initial licensing complete',
+                  contract.initialLicensingComplete,
+                ],
+                ['Insurance complete', contract.insuranceComplete],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label}>
+                <dt className="text-xs text-slate-500">{label}</dt>
+                <dd className="text-navy">
+                  {value === true ? 'Yes' : value === false ? 'No' : 'Unknown'}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </div>
 
@@ -294,61 +487,63 @@ export default function ContractDetailPage() {
           </div>
         </div>
 
-        <form
-          onSubmit={onAddPayment}
-          className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4"
-        >
-          <h2 className="text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
-            Record payment / fee
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Type">
-              <TextSelect name="type" defaultValue="RENTAL_PAYMENT">
-                <option value="RENTAL_PAYMENT">Rental payment</option>
-                <option value="DEPOSIT">Deposit</option>
-                <option value="BALLOON_PAYMENT">Balloon</option>
-                <option value="FINE">Fine</option>
-                <option value="TOLL">Toll</option>
-                <option value="ADMIN_FEE">Admin fee</option>
-                <option value="MAINTENANCE">Maintenance</option>
-                <option value="ADJUSTMENT">Adjustment</option>
-                <option value="REFUND">Refund</option>
-              </TextSelect>
-            </Field>
-            <Field label="Status">
-              <TextSelect name="status" defaultValue="ON_TIME">
-                <option value="ON_TIME">On time</option>
-                <option value="EARLY">Early</option>
-                <option value="LATE">Late</option>
-                <option value="PENDING">Pending</option>
-              </TextSelect>
-            </Field>
-            <Field label="Amount (ZAR)">
-              <TextInput name="amount" type="number" step="0.01" required />
-            </Field>
-            <Field label="Paid at">
-              <TextInput
-                name="paidAt"
-                type="date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
-              />
-            </Field>
-            <Field label="Due date">
-              <TextInput name="dueDate" type="date" />
-            </Field>
-            <Field label="Reference">
-              <TextInput name="reference" />
-            </Field>
-            <Field label="Description">
-              <TextTextarea name="description" rows={2} />
-            </Field>
-          </div>
-          <FormActions error={error}>
-            <PrimaryButton type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Add ledger entry'}
-            </PrimaryButton>
-          </FormActions>
-        </form>
+        {canFinanceWrite && !financeRestricted ? (
+          <form
+            onSubmit={onAddPayment}
+            className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface p-4"
+          >
+            <h2 className="text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              Record payment / fee
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Type">
+                <TextSelect name="type" defaultValue="RENTAL_PAYMENT">
+                  <option value="RENTAL_PAYMENT">Rental payment</option>
+                  <option value="DEPOSIT">Deposit</option>
+                  <option value="BALLOON_PAYMENT">Balloon</option>
+                  <option value="FINE">Fine</option>
+                  <option value="TOLL">Toll</option>
+                  <option value="ADMIN_FEE">Admin fee</option>
+                  <option value="MAINTENANCE">Maintenance</option>
+                  <option value="ADJUSTMENT">Adjustment</option>
+                  <option value="REFUND">Refund</option>
+                </TextSelect>
+              </Field>
+              <Field label="Status">
+                <TextSelect name="status" defaultValue="ON_TIME">
+                  <option value="ON_TIME">On time</option>
+                  <option value="EARLY">Early</option>
+                  <option value="LATE">Late</option>
+                  <option value="PENDING">Pending</option>
+                </TextSelect>
+              </Field>
+              <Field label="Amount (ZAR)">
+                <TextInput name="amount" type="number" step="0.01" required />
+              </Field>
+              <Field label="Paid at">
+                <TextInput
+                  name="paidAt"
+                  type="date"
+                  defaultValue={new Date().toISOString().slice(0, 10)}
+                />
+              </Field>
+              <Field label="Due date">
+                <TextInput name="dueDate" type="date" />
+              </Field>
+              <Field label="Reference">
+                <TextInput name="reference" />
+              </Field>
+              <Field label="Description">
+                <TextTextarea name="description" rows={2} />
+              </Field>
+            </div>
+            <FormActions error={error}>
+              <PrimaryButton type="submit" disabled={saving}>
+                {saving ? 'Saving…' : 'Add ledger entry'}
+              </PrimaryButton>
+            </FormActions>
+          </form>
+        ) : null}
       </div>
     </section>
   );

@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, statusLabel } from '@/lib/api';
+import { api, hasPermission, statusLabel } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 import { DangerButton, PrimaryButton, SecondaryButton } from '@/components/form';
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
@@ -53,6 +54,12 @@ export default function VehicleDetailPage() {
     queryKey: ['auth-me'],
     queryFn: () => api.getMe(),
     retry: false,
+  });
+
+  const licenceHistory = useQuery({
+    queryKey: ['vehicle-licences', params.id],
+    queryFn: () => api.getVehicleLicences(params.id),
+    enabled: Boolean(params.id),
   });
 
   async function syncNow() {
@@ -117,7 +124,21 @@ export default function VehicleDetailPage() {
   const vehicle = query.data;
   const contract = vehicle.contracts[0];
   const detail = telematics.data;
-  const isSuperAdmin = me.data?.role === 'SUPER_ADMIN';
+  const canSync = me.data
+    ? hasPermission(me.data.role, Permission.TELEMATICS_SYNC)
+    : false;
+  const canImmobilize = me.data
+    ? hasPermission(me.data.role, Permission.TELEMATICS_IMMOBILIZE)
+    : false;
+  const canEditFleet = me.data
+    ? hasPermission(me.data.role, Permission.FLEET_WRITE)
+    : false;
+  const canLicenceWrite = me.data
+    ? hasPermission(me.data.role, Permission.LICENCES_WRITE)
+    : false;
+  const canLicenceRead = me.data
+    ? hasPermission(me.data.role, Permission.LICENCES_READ)
+    : false;
   const immobilized =
     detail?.vehicle.isImmobilized ?? vehicle.isImmobilized ?? false;
   const breakdown = detail?.scoreBreakdown;
@@ -152,15 +173,19 @@ export default function VehicleDetailPage() {
           <p className="mt-1 font-mono text-slate-600 dark:text-slate-300">{vehicle.registration}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <SecondaryButton type="button" onClick={syncNow} disabled={busy}>
-            {busy ? 'Working…' : 'Sync CarTrack'}
-          </SecondaryButton>
-          <Link
-            href={`/fleet/${vehicle.id}/edit`}
-            className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
-          >
-            Edit vehicle
-          </Link>
+          {canSync ? (
+            <SecondaryButton type="button" onClick={syncNow} disabled={busy}>
+              {busy ? 'Working…' : 'Sync CarTrack'}
+            </SecondaryButton>
+          ) : null}
+          {canEditFleet ? (
+            <Link
+              href={`/fleet/${vehicle.id}/edit`}
+              className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
+            >
+              Edit vehicle
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -178,6 +203,111 @@ export default function VehicleDetailPage() {
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Service due in ~{detail?.prediction?.estimatedDaysUntilService} days (
           {detail?.prediction?.remainingKm.toLocaleString()} km remaining).
+        </div>
+      ) : null}
+
+      {canLicenceRead ? (
+        <div className="rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              Licence
+            </h2>
+            <Link href="/licences" className="text-sm text-brand hover:underline">
+              Open queue
+            </Link>
+          </div>
+          {vehicle.currentLicence ? (
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-600">Expiry</dt>
+                <dd className="tabular-nums">{vehicle.currentLicence.expiryDate}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-600">Days left</dt>
+                <dd className="tabular-nums">
+                  {vehicle.currentLicence.daysRemaining}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-600">Urgency</dt>
+                <dd>{vehicle.currentLicence.urgency}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-600">Status</dt>
+                <dd>{vehicle.currentLicence.status.replaceAll('_', ' ')}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-600">Responsible</dt>
+                <dd>
+                  {vehicle.currentLicence.responsibleUser?.fullName ?? '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-600">Client notified</dt>
+                <dd>
+                  {vehicle.currentLicence.clientNotifiedAt
+                    ? new Date(
+                        vehicle.currentLicence.clientNotifiedAt,
+                      ).toLocaleDateString('en-ZA')
+                    : 'No'}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-600">Renewal cost</dt>
+                <dd>
+                  {vehicle.currentLicence.renewalCost != null
+                    ? `R ${Number(vehicle.currentLicence.renewalCost).toLocaleString()}`
+                    : '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-600">Renewed expiry</dt>
+                <dd className="tabular-nums">
+                  {vehicle.currentLicence.renewedExpiryDate ?? '—'}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm text-slate-600">
+              Licence information not captured
+              {canLicenceWrite ? (
+                <>
+                  .{' '}
+                  <Link href="/licences" className="text-brand hover:underline">
+                    Create a renewal cycle
+                  </Link>
+                </>
+              ) : (
+                '.'
+              )}
+            </p>
+          )}
+          {licenceHistory.data && licenceHistory.data.history.length > 0 ? (
+            <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-700">
+              <h3 className="mb-2 text-xs uppercase tracking-wide text-slate-600">
+                Licence history
+              </h3>
+              <ul className="space-y-1 text-sm">
+                {licenceHistory.data.history.map((row) => (
+                  <li
+                    key={row.id}
+                    className="flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <span className="tabular-nums text-slate-600">
+                      {row.expiryDate}
+                    </span>
+                    <span>{row.status.replaceAll('_', ' ')}</span>
+                    <Link
+                      href="/licences"
+                      className="text-brand hover:underline"
+                    >
+                      Queue
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -325,7 +455,7 @@ export default function VehicleDetailPage() {
         </div>
       ) : null}
 
-      {isSuperAdmin ? (
+      {canImmobilize ? (
         <div className="rounded-lg border border-orange-400/30 bg-orange-500/10 p-4">
           <h2 className="mb-2 text-sm uppercase tracking-wide text-orange-200">
             Super Admin — immobilization
@@ -360,8 +490,10 @@ export default function VehicleDetailPage() {
             Active assignment
           </h2>
           <p className="text-sm">
-            {contract.planType.replace('_', ' ')} · {contract.status} · R{' '}
-            {Number(contract.monthlyRate).toLocaleString()}/mo
+            {contract.planType.replace('_', ' ')} · {contract.status}
+            {contract.financeRestricted || contract.monthlyRate == null
+              ? ' · rate restricted'
+              : ` · R ${Number(contract.monthlyRate).toLocaleString()}/mo`}
           </p>
           {contract.client && (
             <Link

@@ -204,6 +204,7 @@ function suggestStage(
   },
   progress: { isFinalNinetyDays: boolean },
 ): EndOfTermStage {
+  void progress;
   if (contract.endOfTermStage === EndOfTermStage.HANDOVER) {
     return EndOfTermStage.HANDOVER;
   }

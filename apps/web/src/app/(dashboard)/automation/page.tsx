@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, isAdminRole } from '@/lib/api';
+import { api, hasPermission } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 import { PrimaryButton, SecondaryButton } from '@/components/form';
 
 export default function AutomationPage() {
@@ -37,7 +38,9 @@ export default function AutomationPage() {
   });
 
   const data = status.data;
-  const canRun = me.data ? isAdminRole(me.data.role) : false;
+  const canRun = me.data
+    ? hasPermission(me.data.role, Permission.AUTOMATION_MANAGE)
+    : false;
   const intervalMins =
     data?.intervalMs != null ? Math.round(data.intervalMs / 60_000) : null;
 

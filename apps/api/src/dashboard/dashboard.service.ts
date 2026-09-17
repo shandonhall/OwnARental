@@ -9,12 +9,12 @@ import {
   TelematicsEventType,
   VehicleStatus,
 } from '../generated/prisma/enums';
+import { hasPermission, Permission } from '../auth/permissions';
+import { NON_TERMINAL_LICENCE_STATUSES } from '../licences/licence.constants';
+import { licenceUrgencyForExpiry } from '../licences/licence.urgency';
+import { LicenceRenewalStatus } from '../generated/prisma/enums';
 
-export type TaskCategory =
-  | 'collections'
-  | 'driver'
-  | 'end_of_term'
-  | 'fleet';
+export type TaskCategory = 'collections' | 'driver' | 'end_of_term' | 'fleet';
 
 type TaskKind =
   | 'MISSED_PAYMENT'
@@ -23,12 +23,13 @@ type TaskKind =
   | 'PENDING_FINE'
   | 'SERVICE_DUE'
   | 'RULE_BREACH'
-  | 'END_OF_TERM';
+  | 'END_OF_TERM'
+  | 'LICENCE_DUE';
 
 function taskCategory(kind: TaskKind): TaskCategory {
   if (kind === 'RULE_BREACH') return 'driver';
   if (kind === 'END_OF_TERM') return 'end_of_term';
-  if (kind === 'SERVICE_DUE') return 'fleet';
+  if (kind === 'SERVICE_DUE' || kind === 'LICENCE_DUE') return 'fleet';
   return 'collections';
 }
 
@@ -41,6 +42,10 @@ function assigneeRoleForCategory(category: TaskCategory): Role {
 
 function isAdminViewer(role: Role) {
   return role === Role.ADMIN || role === Role.SUPER_ADMIN;
+}
+
+function isFinanceViewer(role: Role) {
+  return role === Role.FINANCE || isAdminViewer(role);
 }
 
 const ATTENTION_LIMIT = 40;
@@ -68,7 +73,8 @@ export type DashboardAlert = {
     | 'LATE_PAYMENT'
     | 'PENDING_FINE'
     | 'SERVICE_DUE'
-    | 'RULE_BREACH';
+    | 'RULE_BREACH'
+    | 'LICENCE_DUE';
   severity: 'high' | 'medium';
   title: string;
   detail: string;
@@ -131,6 +137,7 @@ export class DashboardService {
       activeClients,
       openContracts,
       staffUsers,
+      openLicences,
     ] = await Promise.all([
       this.prisma.ledgerEntry.findMany({
         where: {
@@ -304,17 +311,43 @@ export class DashboardService {
         },
         orderBy: { fullName: 'asc' },
       }),
+      this.prisma.licenceRenewal.findMany({
+        where: {
+          status: {
+            in: [...NON_TERMINAL_LICENCE_STATUSES] as LicenceRenewalStatus[],
+          },
+        },
+        include: {
+          vehicle: {
+            select: {
+              id: true,
+              registration: true,
+              make: true,
+              model: true,
+            },
+          },
+          client: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+        take: 80,
+      }),
     ]);
 
-    const staffByRole: Record<Role, Array<{
-      id: string;
-      fullName: string;
-      email: string;
-      role: Role;
-    }>> = {
+    const staffByRole: Record<
+      Role,
+      Array<{
+        id: string;
+        fullName: string;
+        email: string;
+        role: Role;
+      }>
+    > = {
       [Role.SUPER_ADMIN]: [],
       [Role.ADMIN]: [],
       [Role.FLEET_MANAGER]: [],
+      [Role.SALES]: [],
+      [Role.FINANCE]: [],
     };
     for (const staff of staffUsers) {
       staffByRole[staff.role].push(staff);
@@ -323,10 +356,7 @@ export class DashboardService {
     const pickAssignee = (role: Role, index: number) => {
       const pool =
         role === Role.ADMIN
-          ? [
-              ...staffByRole[Role.ADMIN],
-              ...staffByRole[Role.SUPER_ADMIN],
-            ]
+          ? [...staffByRole[Role.ADMIN], ...staffByRole[Role.SUPER_ADMIN]]
           : staffByRole[role];
       if (pool.length === 0) {
         return {
@@ -546,6 +576,52 @@ export class DashboardService {
       });
     }
 
+    const licenceCounts = { expired: 0, due30: 0, due60: 0 };
+    for (const renewal of openLicences) {
+      const { daysRemaining, urgency } = licenceUrgencyForExpiry(
+        renewal.expiryDate,
+        now,
+      );
+      if (urgency === 'EXPIRED') licenceCounts.expired += 1;
+      else if (urgency === 'ACTION_30') licenceCounts.due30 += 1;
+      else if (urgency === 'WARN_60') licenceCounts.due60 += 1;
+
+      if (
+        urgency !== 'WARN_60' &&
+        urgency !== 'ACTION_30' &&
+        urgency !== 'EXPIRED'
+      ) {
+        continue;
+      }
+
+      pushAttention({
+        id: `licence-${renewal.id}`,
+        kind: 'LICENCE_DUE',
+        severity: urgency === 'WARN_60' ? 'medium' : 'high',
+        title: renewal.vehicle.registration,
+        detail:
+          urgency === 'EXPIRED'
+            ? `Licence expired ${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) === 1 ? '' : 's'} ago`
+            : `Licence due in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`,
+        amount: null,
+        date: renewal.expiryDate.toISOString(),
+        client: renewal.client
+          ? {
+              id: renewal.client.id,
+              firstName: renewal.client.firstName,
+              lastName: renewal.client.lastName,
+            }
+          : null,
+        contractId: null,
+        vehicle: {
+          id: renewal.vehicle.id,
+          registration: renewal.vehicle.registration,
+          make: renewal.vehicle.make,
+          model: renewal.vehicle.model,
+        },
+      });
+    }
+
     const wins: DashboardWin[] = [];
 
     for (const entry of earlyPayments) {
@@ -646,9 +722,7 @@ export class DashboardService {
     const arrears = statusCounts.ARREARS;
     const paidUp = statusCounts.PAID_UP;
     const utilizationPercent =
-      total > 0
-        ? Math.round(((active + arrears) / total) * 1000) / 10
-        : 0;
+      total > 0 ? Math.round(((active + arrears) / total) * 1000) / 10 : 0;
 
     const byStatus = FLEET_STATUS_ORDER.map((status) => {
       const count = statusCounts[status];
@@ -786,10 +860,7 @@ export class DashboardService {
     }) => {
       const category = taskCategory(input.kind);
       const assigneeRole = assigneeRoleForCategory(category);
-      const assignee = pickAssignee(
-        assigneeRole,
-        categoryCounters[category]++,
-      );
+      const assignee = pickAssignee(assigneeRole, categoryCounters[category]++);
       return {
         id: input.id,
         label: input.label,
@@ -809,6 +880,7 @@ export class DashboardService {
         .filter(
           (item) =>
             item.kind === 'SERVICE_DUE' ||
+            item.kind === 'LICENCE_DUE' ||
             item.kind === 'RULE_BREACH' ||
             (item.client && item.contractId),
         )
@@ -819,7 +891,7 @@ export class DashboardService {
             severity: item.severity,
             contractId: item.contractId,
             clientId: item.client?.id ?? null,
-            kind: item.kind as TaskKind,
+            kind: item.kind,
             advancePipelineTo: null,
           }),
         ),
@@ -837,12 +909,17 @@ export class DashboardService {
     ];
 
     const adminView = isAdminViewer(viewer.role);
+    const financeView = isFinanceViewer(viewer.role);
+    const canSeeFinanceDetail = hasPermission(
+      viewer.role,
+      Permission.FINANCE_READ,
+    );
     const myTasks = allTasks.filter((task) => {
       if (adminView) return true;
+      if (financeView && task.category === 'collections') return true;
       if (task.assignee.userId && task.assignee.userId === viewer.id) {
         return true;
       }
-      // Fleet managers own driver + fleet queues by role when no named assignee.
       return task.assigneeRole === viewer.role;
     });
 
@@ -853,6 +930,74 @@ export class DashboardService {
       fleet: myTasks.filter((t) => t.category === 'fleet'),
     };
 
+    const isLicenceOperator =
+      viewer.role === Role.SUPER_ADMIN ||
+      viewer.role === Role.ADMIN ||
+      viewer.role === Role.FLEET_MANAGER;
+
+    const canReadLeads = hasPermission(viewer.role, Permission.LEADS_READ);
+    const canAssignLeads = hasPermission(viewer.role, Permission.LEADS_ASSIGN);
+
+    let leadsUnassigned = 0;
+    let leadsNotAttempted = 0;
+    let leadsMyNew = 0;
+    let leadsMyNotAttempted = 0;
+
+    if (canReadLeads) {
+      if (canAssignLeads) {
+        const [unassigned, notAttempted] = await Promise.all([
+          this.prisma.lead.count({
+            where: { archivedAt: null, assignedUserId: null },
+          }),
+          this.prisma.lead.count({
+            where: {
+              archivedAt: null,
+              firstAttemptAt: null,
+              stage: { notIn: ['CLOSED_WON', 'CLOSED_LOST'] },
+            },
+          }),
+        ]);
+        leadsUnassigned = unassigned;
+        leadsNotAttempted = notAttempted;
+      } else {
+        const [myNew, myNotAttempted] = await Promise.all([
+          this.prisma.lead.count({
+            where: {
+              archivedAt: null,
+              assignedUserId: viewer.id,
+              stage: 'NEW',
+            },
+          }),
+          this.prisma.lead.count({
+            where: {
+              archivedAt: null,
+              assignedUserId: viewer.id,
+              firstAttemptAt: null,
+              stage: { notIn: ['CLOSED_WON', 'CLOSED_LOST'] },
+            },
+          }),
+        ]);
+        leadsMyNew = myNew;
+        leadsMyNotAttempted = myNotAttempted;
+      }
+    }
+
+    const safeAttention = (
+      canSeeFinanceDetail
+        ? attention
+        : attention.filter(
+            (item) =>
+              item.kind === 'SERVICE_DUE' ||
+              item.kind === 'RULE_BREACH' ||
+              item.kind === 'LICENCE_DUE',
+          )
+    ).filter((item) => item.kind !== 'LICENCE_DUE' || isLicenceOperator);
+
+    const safeWins = canSeeFinanceDetail ? wins : [];
+    const safeLicenceCounts = isLicenceOperator
+      ? licenceCounts
+      : { expired: 0, due30: 0, due60: 0 };
+
     return {
       generatedAt: now.toISOString(),
       viewer: {
@@ -862,32 +1007,46 @@ export class DashboardService {
         canSeeAllTasks: adminView,
       },
       summary: {
-        attentionCount: attention.length,
-        winsCount: wins.length,
+        attentionCount: safeAttention.length,
+        winsCount: safeWins.length,
         fleetTotal: total,
         onContract,
         available,
-        arrears,
+        arrears: canSeeFinanceDetail ? arrears : 0,
         utilizationPercent,
         activeFleet,
-        paymentAlerts,
+        paymentAlerts: canSeeFinanceDetail ? paymentAlerts : 0,
         serviceDue: serviceDueCount,
         contractsNearingCompletion,
-        pendingFineCount,
+        pendingFineCount: canSeeFinanceDetail ? pendingFineCount : 0,
+        licenceExpired: safeLicenceCounts.expired,
+        licenceDue30: safeLicenceCounts.due30,
+        licenceDue60: safeLicenceCounts.due60,
+        leadsUnassigned,
+        leadsNotAttempted,
+        leadsMyNew,
+        leadsMyNotAttempted,
       },
       kpi: {
         activeFleet,
-        paymentAlerts,
+        paymentAlerts: canSeeFinanceDetail ? paymentAlerts : 0,
         serviceDue: serviceDueCount,
         contractsNearingCompletion,
         utilizationPercent,
+        licenceExpired: safeLicenceCounts.expired,
+        licenceDue30: safeLicenceCounts.due30,
+        licenceDue60: safeLicenceCounts.due60,
+        leadsUnassigned,
+        leadsNotAttempted,
+        leadsMyNew,
+        leadsMyNotAttempted,
       },
       fleet: {
         total,
         onContract,
         available,
         active,
-        arrears,
+        arrears: canSeeFinanceDetail ? arrears : 0,
         paidUp,
         immobilized,
         utilizationPercent,
@@ -898,21 +1057,21 @@ export class DashboardService {
         byStatus,
         vehicles: fleetVehicles,
       },
-      attention,
-      wins,
+      attention: safeAttention,
+      wins: safeWins,
       analytics: {
         geography,
         contractHealth: {
           healthy,
           ending,
-          needsAttention,
+          needsAttention: canSeeFinanceDetail ? needsAttention : 0,
           byStatus: Object.entries(contractHealthByStatus)
             .map(([status, count]) => ({ status, count }))
             .filter((row) => row.count > 0),
         },
         endOfTerm,
-        endingClients,
-        pendingFineCount,
+        endingClients: canSeeFinanceDetail ? endingClients : [],
+        pendingFineCount: canSeeFinanceDetail ? pendingFineCount : 0,
       },
       myTasks,
       tasksByCategory,

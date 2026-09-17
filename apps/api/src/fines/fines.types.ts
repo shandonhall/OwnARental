@@ -10,10 +10,6 @@ export type ExternalFine = {
 
 export type FinesProvider = {
   readonly mode: 'mock' | 'live';
-  fetchOutstandingByRegistration(
-    registration: string,
-  ): Promise<ExternalFine[]>;
-  fetchFleetOutstanding(
-    registrations: string[],
-  ): Promise<ExternalFine[]>;
+  fetchOutstandingByRegistration(registration: string): Promise<ExternalFine[]>;
+  fetchFleetOutstanding(registrations: string[]): Promise<ExternalFine[]>;
 };

@@ -15,7 +15,8 @@ import {
   TextTextarea,
   emptyToNull,
 } from '@/components/form';
-import { api, FicaStatus, isAdminRole } from '@/lib/api';
+import { api, FicaStatus, hasPermission } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 
 export default function EditClientPage() {
   const params = useParams<{ id: string }>();
@@ -33,7 +34,9 @@ export default function EditClientPage() {
     queryFn: () => api.getMe(),
     retry: false,
   });
-  const canAdmin = me.data ? isAdminRole(me.data.role) : false;
+  const canDelete = me.data
+    ? hasPermission(me.data.role, Permission.CLIENTS_DELETE)
+    : false;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -230,7 +233,7 @@ export default function EditClientPage() {
           >
             Cancel
           </SecondaryButton>
-          {canAdmin ? (
+          {canDelete ? (
             <DangerButton type="button" disabled={saving} onClick={onDeactivate}>
               Deactivate
             </DangerButton>

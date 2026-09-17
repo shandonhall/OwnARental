@@ -4,17 +4,17 @@ import type { ExternalFine, FinesProvider } from './fines.types';
 export class MockFinesProvider implements FinesProvider {
   readonly mode = 'mock' as const;
 
-  async fetchOutstandingByRegistration(
+  fetchOutstandingByRegistration(
     registration: string,
   ): Promise<ExternalFine[]> {
     const seed = hashString(registration.toUpperCase());
     if (seed % 3 === 0) {
-      return [];
+      return Promise.resolve([]);
     }
 
     const amount = 350 + (seed % 12) * 50;
     const isToll = seed % 2 === 0;
-    return [
+    return Promise.resolve([
       {
         externalId: `MOCK-${registration.toUpperCase().replace(/\s+/g, '')}-${seed % 10000}`,
         source: isToll ? 'SANRAL' : 'AARTO',
@@ -26,7 +26,7 @@ export class MockFinesProvider implements FinesProvider {
           : `AARTO infringement · ${registration.toUpperCase()}`,
         raw: { mock: true, seed },
       },
-    ];
+    ]);
   }
 
   async fetchFleetOutstanding(

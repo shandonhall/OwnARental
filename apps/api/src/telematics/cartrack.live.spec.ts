@@ -35,8 +35,8 @@ describe('normalizeTelemetry', () => {
   });
 
   it('throws when coordinates are missing', () => {
-    expect(() =>
-      normalizeTelemetry('DEV-2', { odometerKm: 1000 }),
-    ).toThrow(/missing lat\/lng\/odometer/);
+    expect(() => normalizeTelemetry('DEV-2', { odometerKm: 1000 })).toThrow(
+      /missing lat\/lng\/odometer/,
+    );
   });
 });

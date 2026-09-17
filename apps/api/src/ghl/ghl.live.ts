@@ -37,9 +37,7 @@ export class LiveGhlProvider implements GhlProvider {
     return this.apiUrl.replace(/\/$/, '');
   }
 
-  async upsertContact(
-    input: GhlContactInput,
-  ): Promise<{ contactId: string }> {
+  async upsertContact(input: GhlContactInput): Promise<{ contactId: string }> {
     const body = {
       locationId: this.locationId,
       firstName: input.firstName,
@@ -134,8 +132,7 @@ export class LiveGhlProvider implements GhlProvider {
   async emitWorkflow(
     payload: GhlWorkflowPayload,
   ): Promise<{ messageId: string }> {
-    const url =
-      this.webhookByEvent[payload.event] ?? this.webhookUrl ?? null;
+    const url = this.webhookByEvent[payload.event] ?? this.webhookUrl ?? null;
     if (!url) {
       throw new Error(
         `No GHL webhook configured for event ${payload.event} (set GHL_WEBHOOK_URL or event-specific URL)`,

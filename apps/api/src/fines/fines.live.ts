@@ -31,8 +31,7 @@ export class LiveFinesProvider implements FinesProvider {
     }
 
     const body = (await response.json()) as
-      | unknown[]
-      | { fines?: unknown[]; results?: unknown[] };
+      unknown[] | { fines?: unknown[]; results?: unknown[] };
     const rows = Array.isArray(body)
       ? body
       : Array.isArray(body.fines)
@@ -57,24 +56,32 @@ export class LiveFinesProvider implements FinesProvider {
   }
 }
 
+function asDisplayString(value: unknown, fallback = ''): string {
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return String(value);
+  }
+  return fallback;
+}
+
 function normalizeFine(
   row: unknown,
   fallbackRegistration: string,
 ): ExternalFine | null {
   if (!row || typeof row !== 'object') return null;
   const record = row as Record<string, unknown>;
-  const externalId = String(
-    record.externalId ??
-      record.id ??
-      record.noticeNumber ??
-      record.reference ??
-      '',
+  const externalId = asDisplayString(
+    record.externalId ?? record.id ?? record.noticeNumber ?? record.reference,
   ).trim();
   const amount = Number(record.amount ?? record.total ?? record.value);
   if (!externalId || !Number.isFinite(amount) || amount <= 0) return null;
 
-  const sourceRaw = String(
-    record.source ?? record.authority ?? 'AARTO',
+  const sourceRaw = asDisplayString(
+    record.source ?? record.authority,
+    'AARTO',
   ).toUpperCase();
   const source: ExternalFine['source'] =
     sourceRaw.includes('SANRAL') || sourceRaw.includes('TOLL')
@@ -83,8 +90,7 @@ function normalizeFine(
         ? 'MUNICIPAL'
         : 'AARTO';
 
-  const offence =
-    record.offenceDate ?? record.date ?? record.issuedAt ?? null;
+  const offence = record.offenceDate ?? record.date ?? record.issuedAt ?? null;
   const offenceDate =
     typeof offence === 'string' || typeof offence === 'number'
       ? new Date(offence)
@@ -93,14 +99,16 @@ function normalizeFine(
   return {
     externalId,
     source,
-    registration: String(
-      record.registration ?? record.plate ?? fallbackRegistration,
+    registration: asDisplayString(
+      record.registration ?? record.plate,
+      fallbackRegistration,
     ).toUpperCase(),
     offenceDate:
       offenceDate && !Number.isNaN(offenceDate.getTime()) ? offenceDate : null,
     amount,
-    description: String(
-      record.description ?? record.offence ?? `${source} notice ${externalId}`,
+    description: asDisplayString(
+      record.description ?? record.offence,
+      `${source} notice ${externalId}`,
     ),
     raw: record,
   };

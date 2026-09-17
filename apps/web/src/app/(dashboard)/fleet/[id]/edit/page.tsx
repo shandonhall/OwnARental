@@ -16,7 +16,8 @@ import {
   emptyToNull,
   toDateInputValue,
 } from '@/components/form';
-import { api, VehicleStatus, isAdminRole } from '@/lib/api';
+import { api, VehicleStatus, hasPermission } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 
 export default function EditVehiclePage() {
   const params = useParams<{ id: string }>();
@@ -34,7 +35,9 @@ export default function EditVehiclePage() {
     queryFn: () => api.getMe(),
     retry: false,
   });
-  const canAdmin = me.data ? isAdminRole(me.data.role) : false;
+  const canDelete = me.data
+    ? hasPermission(me.data.role, Permission.FLEET_DELETE)
+    : false;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -256,7 +259,7 @@ export default function EditVehiclePage() {
           >
             Cancel
           </SecondaryButton>
-          {canAdmin ? (
+          {canDelete ? (
             <DangerButton type="button" disabled={saving} onClick={onRetire}>
               Retire vehicle
             </DangerButton>

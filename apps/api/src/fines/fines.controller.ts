@@ -8,13 +8,10 @@ import {
 } from '@nestjs/common';
 import { FinesService } from './fines.service';
 import { FinesSchedulerService } from './fines.scheduler';
-import {
-  listFinesQuerySchema,
-  type ListFinesQuery,
-} from './fines.schemas';
+import { listFinesQuerySchema, type ListFinesQuery } from './fines.schemas';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { Roles } from '../auth/roles.decorator';
-import { Role } from '../generated/prisma/enums';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { Permission } from '../auth/permissions';
 
 @Controller('fines')
 export class FinesController {
@@ -24,11 +21,13 @@ export class FinesController {
   ) {}
 
   @Get('status')
+  @RequirePermissions(Permission.FINES_READ)
   getStatus() {
     return this.finesService.getStatus(this.scheduler.getMeta());
   }
 
   @Get()
+  @RequirePermissions(Permission.FINES_READ)
   list(
     @Query(new ZodValidationPipe(listFinesQuerySchema)) query: ListFinesQuery,
   ) {
@@ -36,7 +35,7 @@ export class FinesController {
   }
 
   @Post('sync')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.FLEET_MANAGER)
+  @RequirePermissions(Permission.FINES_WRITE)
   sync(@Query('registration') registration?: string) {
     return this.finesService.sync({
       registration: registration?.trim() || undefined,
@@ -44,7 +43,7 @@ export class FinesController {
   }
 
   @Post(':id/invoice')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.FLEET_MANAGER)
+  @RequirePermissions(Permission.FINES_WRITE)
   invoice(@Param('id', ParseUUIDPipe) id: string) {
     return this.finesService.invoice(id);
   }

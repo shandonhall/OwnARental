@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
 export const listFinesQuerySchema = z.object({
-  status: z
-    .enum(['UNMATCHED', 'MATCHED', 'INVOICED', 'VOID'])
-    .optional(),
+  status: z.enum(['UNMATCHED', 'MATCHED', 'INVOICED', 'VOID']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
 });
 

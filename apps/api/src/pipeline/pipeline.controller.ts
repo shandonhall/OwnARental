@@ -1,24 +1,30 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch } from '@nestjs/common';
-import { PipelineService } from './pipeline.service';
 import {
-  updateEndOfTermStageSchema,
-  type UpdateEndOfTermStageDto,
-} from './pipeline.schemas';
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+} from '@nestjs/common';
+import { PipelineService } from './pipeline.service';
+import { updateEndOfTermStageSchema } from './pipeline.schemas';
+import type { UpdateEndOfTermStageDto } from './pipeline.schemas';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { Roles } from '../auth/roles.decorator';
-import { Role } from '../generated/prisma/enums';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { Permission } from '../auth/permissions';
 
 @Controller('pipeline')
 export class PipelineController {
   constructor(private readonly pipelineService: PipelineService) {}
 
   @Get('end-of-term')
+  @RequirePermissions(Permission.END_OF_TERM_READ)
   getBoard() {
     return this.pipelineService.getEndOfTermBoard();
   }
 
   @Patch('end-of-term/:id')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.FLEET_MANAGER)
+  @RequirePermissions(Permission.END_OF_TERM_WRITE)
   updateStage(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateEndOfTermStageSchema))

@@ -39,10 +39,7 @@ export class FinesService {
     this.adminFeeZar = Number.isFinite(fee) && fee >= 0 ? fee : 150;
   }
 
-  getStatus(schedulerMeta?: {
-    autoSyncEnabled: boolean;
-    intervalMs: number;
-  }) {
+  getStatus(schedulerMeta?: { autoSyncEnabled: boolean; intervalMs: number }) {
     return {
       provider: this.provider.mode,
       handshake: 'ok' as const,
@@ -175,9 +172,7 @@ export class FinesService {
         amount: new Prisma.Decimal(fine.amount),
         description: fine.description,
         rawPayload:
-          fine.raw != null
-            ? (fine.raw as Prisma.InputJsonValue)
-            : undefined,
+          fine.raw != null ? (fine.raw as Prisma.InputJsonValue) : undefined,
         contractId: contract?.id ?? null,
         status: contract
           ? FineImportStatus.MATCHED
@@ -256,8 +251,7 @@ export class FinesService {
           amount: item.amount,
           reference: item.externalId,
           description:
-            item.description ??
-            `${item.source} fine for ${item.registration}`,
+            item.description ?? `${item.source} fine for ${item.registration}`,
           metadata: {
             fineImportId: item.id,
             externalId: item.externalId,

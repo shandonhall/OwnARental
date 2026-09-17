@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { api, statusLabel, type VehicleStatus } from '@/lib/api';
+import { api, hasPermission, statusLabel, type VehicleStatus } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 import { useTableSort } from '@/lib/table-sort';
 
 const STATUS_FILTERS: Array<{ value: '' | VehicleStatus; label: string }> = [
@@ -37,6 +38,15 @@ export default function FleetPage() {
   const [status, setStatus] = useState<'' | VehicleStatus>('');
   const [search, setSearch] = useState('');
 
+  const me = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => api.getMe(),
+    retry: false,
+  });
+  const canWrite = me.data
+    ? hasPermission(me.data.role, Permission.FLEET_WRITE)
+    : false;
+
   const query = useQuery({
     queryKey: ['fleet', status, search],
     queryFn: () =>
@@ -63,6 +73,8 @@ export default function FleetPage() {
       city: (v: (typeof rows)[number]) => v.contracts?.[0]?.client?.city ?? '',
       odometer: (v: (typeof rows)[number]) => v.currentOdometerKm ?? 0,
       score: (v: (typeof rows)[number]) => v.driverScore ?? -1,
+      licence: (v: (typeof rows)[number]) =>
+        v.currentLicence?.daysRemaining ?? 9999,
     }),
     [],
   );
@@ -95,12 +107,14 @@ export default function FleetPage() {
           >
             Refresh
           </button>
-          <Link
-            href="/fleet/new"
-            className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
-          >
-            Add vehicle
-          </Link>
+          {canWrite ? (
+            <Link
+              href="/fleet/new"
+              className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
+            >
+              Add vehicle
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -141,29 +155,30 @@ export default function FleetPage() {
               <SortTh column="city">City</SortTh>
               <SortTh column="odometer">Odometer</SortTh>
               <SortTh column="score">Score</SortTh>
+              <SortTh column="licence">Licence</SortTh>
             </tr>
           </thead>
           <tbody>
             {query.isLoading && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-slate-600 dark:text-slate-300">
+                <td colSpan={9} className="px-4 py-8 text-slate-600 dark:text-slate-300">
                   Loading fleet…
                 </td>
               </tr>
             )}
             {query.isError && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-danger">
+                <td colSpan={9} className="px-4 py-8 text-danger">
                   Could not load fleet. Is the API running on port 3001?
                 </td>
               </tr>
             )}
             {!query.isLoading && !query.isError && sorted.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-slate-600 dark:text-slate-300">
+                <td colSpan={9} className="px-4 py-8 text-slate-600 dark:text-slate-300">
                   {status || search
                     ? 'No vehicles match this filter.'
-                    : (
+                    : canWrite ? (
                       <>
                         No vehicles yet.{' '}
                         <Link
@@ -174,6 +189,8 @@ export default function FleetPage() {
                         </Link>
                         .
                       </>
+                    ) : (
+                      'No vehicles yet.'
                     )}
                 </td>
               </tr>
@@ -222,6 +239,37 @@ export default function FleetPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {vehicle.driverScore ?? '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const licence = vehicle.currentLicence;
+                      if (!licence) {
+                        return <span className="text-slate-400">—</span>;
+                      }
+                      if (licence.urgency === 'EXPIRED') {
+                        return (
+                          <span className="font-medium text-danger">Expired</span>
+                        );
+                      }
+                      if (licence.urgency === 'OK') {
+                        return (
+                          <span className="text-success">
+                            Valid · {licence.daysRemaining}d
+                          </span>
+                        );
+                      }
+                      return (
+                        <span
+                          className={
+                            licence.urgency === 'ACTION_30'
+                              ? 'font-medium text-danger'
+                              : 'text-warning'
+                          }
+                        >
+                          {licence.daysRemaining}d
+                        </span>
+                      );
+                    })()}
                   </td>
                 </tr>
               );

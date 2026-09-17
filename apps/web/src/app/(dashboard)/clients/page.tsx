@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, hasPermission } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 import { useTableSort } from '@/lib/table-sort';
 
 function ficaClass(status: string) {
@@ -21,6 +22,15 @@ function ficaClass(status: string) {
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
+
+  const me = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => api.getMe(),
+    retry: false,
+  });
+  const canWrite = me.data
+    ? hasPermission(me.data.role, Permission.CLIENTS_WRITE)
+    : false;
 
   const query = useQuery({
     queryKey: ['clients', search],
@@ -63,12 +73,14 @@ export default function ClientsPage() {
             column to sort.
           </p>
         </div>
-        <Link
-          href="/clients/new"
-          className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
-        >
-          Add client
-        </Link>
+        {canWrite ? (
+          <Link
+            href="/clients/new"
+            className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
+          >
+            Add client
+          </Link>
+        ) : null}
       </div>
 
       <div className="mb-4">
@@ -112,13 +124,17 @@ export default function ClientsPage() {
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-brand-grey">
                   No clients yet.{' '}
-                  <Link
-                    href="/clients/new"
-                    className="text-brand hover:underline"
-                  >
-                    Add the first client
-                  </Link>
-                  .
+                  {canWrite ? (
+                    <Link
+                      href="/clients/new"
+                      className="text-brand hover:underline"
+                    >
+                      Add the first client
+                    </Link>
+                  ) : (
+                    'Ask an administrator if you need write access.'
+                  )}
+                  {canWrite ? '.' : ''}
                 </td>
               </tr>
             )}

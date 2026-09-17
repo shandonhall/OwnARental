@@ -19,14 +19,15 @@ import type {
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { User } from '../generated/prisma/client';
-import { Roles } from '../auth/roles.decorator';
-import { Role } from '../generated/prisma/enums';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { Permission } from '../auth/permissions';
 
 @Controller('contracts/:contractId/ledger')
 export class LedgerController {
   constructor(private readonly ledgerService: LedgerService) {}
 
   @Post()
+  @RequirePermissions(Permission.FINANCE_WRITE)
   create(
     @Param('contractId', ParseUUIDPipe) contractId: string,
     @Body(new ZodValidationPipe(createLedgerEntrySchema))
@@ -37,6 +38,7 @@ export class LedgerController {
   }
 
   @Patch(':entryId')
+  @RequirePermissions(Permission.FINANCE_WRITE)
   update(
     @Param('contractId', ParseUUIDPipe) contractId: string,
     @Param('entryId', ParseUUIDPipe) entryId: string,
@@ -47,7 +49,7 @@ export class LedgerController {
   }
 
   @Delete(':entryId')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @RequirePermissions(Permission.FINANCE_WRITE)
   remove(
     @Param('contractId', ParseUUIDPipe) contractId: string,
     @Param('entryId', ParseUUIDPipe) entryId: string,

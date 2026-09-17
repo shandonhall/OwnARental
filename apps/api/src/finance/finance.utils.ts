@@ -1,8 +1,5 @@
 import { Prisma } from '../generated/prisma/client';
-import {
-  LedgerEntryStatus,
-  LedgerEntryType,
-} from '../generated/prisma/enums';
+import { LedgerEntryStatus, LedgerEntryType } from '../generated/prisma/enums';
 
 const INCOME_TYPES: LedgerEntryType[] = [
   LedgerEntryType.RENTAL_PAYMENT,
@@ -139,7 +136,10 @@ export function termProgress(input: {
   const start = new Date(input.startDate);
   const end = new Date(input.endDate);
   const totalMs = Math.max(end.getTime() - start.getTime(), 1);
-  const elapsedMs = Math.min(Math.max(now.getTime() - start.getTime(), 0), totalMs);
+  const elapsedMs = Math.min(
+    Math.max(now.getTime() - start.getTime(), 0),
+    totalMs,
+  );
   const percent = Math.round((elapsedMs / totalMs) * 1000) / 10;
 
   const monthsElapsed = Math.min(
@@ -166,23 +166,25 @@ export function termProgress(input: {
   };
 }
 
-export function withFinanceSummary<T extends {
-  monthlyRate: Prisma.Decimal;
-  termMonths: number;
-  depositAmount: Prisma.Decimal;
-  balloonAmount: Prisma.Decimal | null;
-  totalPaid: Prisma.Decimal;
-  outstandingBalance: Prisma.Decimal;
-  startDate: Date;
-  endDate: Date;
-  ledger?: Array<{
-    type: LedgerEntryType;
-    status: LedgerEntryStatus;
-    amount: Prisma.Decimal;
-    dueDate?: Date | null;
-    paidAt?: Date | null;
-  }>;
-}>(contract: T, now = new Date()) {
+export function withFinanceSummary<
+  T extends {
+    monthlyRate: Prisma.Decimal;
+    termMonths: number;
+    depositAmount: Prisma.Decimal;
+    balloonAmount: Prisma.Decimal | null;
+    totalPaid: Prisma.Decimal;
+    outstandingBalance: Prisma.Decimal;
+    startDate: Date;
+    endDate: Date;
+    ledger?: Array<{
+      type: LedgerEntryType;
+      status: LedgerEntryStatus;
+      amount: Prisma.Decimal;
+      dueDate?: Date | null;
+      paidAt?: Date | null;
+    }>;
+  },
+>(contract: T, now = new Date()) {
   const expectedTotal = expectedContractTotal(contract);
   const totalPaid = contract.ledger
     ? sumPaidIncome(contract.ledger)
@@ -209,7 +211,15 @@ export function withFinanceSummary<T extends {
     new Prisma.Decimal(0),
   );
 
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const monthEnd = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999,
+  );
   const monthOwed = (contract.ledger ?? []).reduce((total, entry) => {
     if (entry.type !== LedgerEntryType.RENTAL_PAYMENT) return total;
     if (entry.status !== LedgerEntryStatus.PENDING) return total;
@@ -218,6 +228,8 @@ export function withFinanceSummary<T extends {
     if (due && due > monthEnd) return total;
     return total.add(new Prisma.Decimal(entry.amount));
   }, new Prisma.Decimal(0));
+
+  const pricing = withMonthlyPricingSummary(contract);
 
   return {
     ...contract,
@@ -230,5 +242,98 @@ export function withFinanceSummary<T extends {
     balloonPaid,
     monthOwed: monthOwed.toFixed(2),
     termProgress: progress,
+    ...pricing,
+  };
+}
+
+/** Schedule A monthly All-In line items. Null = not captured; 0 = no charge. */
+export const MONTHLY_COMPONENT_KEYS = [
+  'vehicleRentalAmount',
+  'administrationAmount',
+  'warrantyAmount',
+  'servicePlanAmount',
+  'trackingAmount',
+  'licenceFeeAmount',
+  'insuranceAmount',
+  'lifeInsuranceAmount',
+  'otherMonthlyAmount',
+] as const;
+
+export type MonthlyComponentKey = (typeof MONTHLY_COMPONENT_KEYS)[number];
+
+export type MonthlyComponentsInput = Partial<
+  Record<MonthlyComponentKey, Prisma.Decimal | number | string | null>
+>;
+
+function toOptionalDecimal(
+  value: Prisma.Decimal | number | string | null | undefined,
+): Prisma.Decimal | null {
+  if (value === null || value === undefined || value === '') return null;
+  return new Prisma.Decimal(value);
+}
+
+/** True when every component field is non-null (including explicit zeros). */
+export function hasCompleteMonthlyBreakdown(
+  input: MonthlyComponentsInput,
+): boolean {
+  return MONTHLY_COMPONENT_KEYS.every(
+    (key) => toOptionalDecimal(input[key]) !== null,
+  );
+}
+
+/** True when no component fields have been captured (all null/undefined). */
+export function isMonthlyBreakdownUncaptured(
+  input: MonthlyComponentsInput,
+): boolean {
+  return MONTHLY_COMPONENT_KEYS.every(
+    (key) => toOptionalDecimal(input[key]) === null,
+  );
+}
+
+/**
+ * Sum captured monthly components with Decimal arithmetic.
+ * Null fields are treated as 0 for the sum only when at least one field is set;
+ * returns null when the breakdown is fully uncaptured.
+ */
+export function sumMonthlyComponents(
+  input: MonthlyComponentsInput,
+): Prisma.Decimal | null {
+  if (isMonthlyBreakdownUncaptured(input)) return null;
+
+  return MONTHLY_COMPONENT_KEYS.reduce((total, key) => {
+    const value = toOptionalDecimal(input[key]);
+    return total.add(value ?? new Prisma.Decimal(0));
+  }, new Prisma.Decimal(0));
+}
+
+/**
+ * When all nine components are captured, they must equal monthlyRate (All-In)
+ * at 2 decimal places. Incomplete/legacy breakdowns are not forced to match.
+ */
+export function monthlyComponentsMatchAllIn(
+  monthlyRate: Prisma.Decimal | number | string,
+  input: MonthlyComponentsInput,
+): boolean | null {
+  if (!hasCompleteMonthlyBreakdown(input)) return null;
+  const sum = sumMonthlyComponents(input);
+  if (!sum) return null;
+  return sum.toFixed(2) === new Prisma.Decimal(monthlyRate).toFixed(2);
+}
+
+export function withMonthlyPricingSummary(
+  input: MonthlyComponentsInput & {
+    monthlyRate: Prisma.Decimal | number | string;
+  },
+) {
+  const breakdownUncaptured = isMonthlyBreakdownUncaptured(input);
+  const breakdownComplete = hasCompleteMonthlyBreakdown(input);
+  const calculated = sumMonthlyComponents(input);
+  const matches = monthlyComponentsMatchAllIn(input.monthlyRate, input);
+
+  return {
+    pricingBreakdownCaptured: !breakdownUncaptured,
+    pricingBreakdownComplete: breakdownComplete,
+    calculatedComponentsTotal: calculated ? calculated.toFixed(2) : null,
+    componentsMatchMonthlyRate: matches,
   };
 }

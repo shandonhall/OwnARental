@@ -10,10 +10,7 @@ import { Prisma } from '../generated/prisma/client';
 import { TelematicsEventType } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '../generated/prisma/client';
-import type {
-  CarTrackProvider,
-  DriverScoreBreakdown,
-} from './cartrack.types';
+import type { CarTrackProvider, DriverScoreBreakdown } from './cartrack.types';
 import { MockCarTrackProvider } from './cartrack.mock';
 import { LiveCarTrackProvider } from './cartrack.live';
 import {
@@ -114,9 +111,7 @@ export class TelematicsService {
       const serviceDueDate = vehicle.nextServiceDueDate;
       const daysUntilService =
         serviceDueDate != null
-          ? Math.ceil(
-              (serviceDueDate.getTime() - now) / (1000 * 60 * 60 * 24),
-            )
+          ? Math.ceil((serviceDueDate.getTime() - now) / (1000 * 60 * 60 * 24))
           : null;
 
       return {
@@ -135,8 +130,7 @@ export class TelematicsService {
         nextServiceDueKm: vehicle.nextServiceDueKm,
         nextServiceDueDate: vehicle.nextServiceDueDate,
         daysUntilService,
-        serviceDueSoon:
-          daysUntilService != null && daysUntilService <= 14,
+        serviceDueSoon: daysUntilService != null && daysUntilService <= 14,
         averageDailyKm: vehicle.averageDailyKm
           ? Number(vehicle.averageDailyKm)
           : null,
@@ -172,8 +166,7 @@ export class TelematicsService {
     }
 
     const previousScore = vehicle.driverScore;
-    const deviceId =
-      vehicle.carTrackDeviceId ?? `MOCK-${vehicle.registration}`;
+    const deviceId = vehicle.carTrackDeviceId ?? `MOCK-${vehicle.registration}`;
 
     if (!vehicle.carTrackDeviceId) {
       await this.prisma.vehicle.update({
@@ -387,9 +380,7 @@ export class TelematicsService {
 
       this.lastFleetSyncAt = new Date();
       this.lastFleetSyncError =
-        errors.length > 0
-          ? `${errors.length} vehicle(s) failed to sync`
-          : null;
+        errors.length > 0 ? `${errors.length} vehicle(s) failed to sync` : null;
       this.lastFleetSyncResult = result;
       return result;
     } catch (error) {
@@ -441,25 +432,30 @@ export class TelematicsService {
     const recentBreaches = vehicle.telematicsEvents
       .filter((event) => event.type === TelematicsEventType.RULE_BREACH)
       .slice(0, 8)
-      .map((event) => ({
-        id: event.id,
-        code:
-          typeof event.payload === 'object' &&
-          event.payload &&
-          'code' in event.payload
-            ? String((event.payload as { code?: unknown }).code ?? 'BREACH')
-            : 'BREACH',
-        severity:
-          typeof event.payload === 'object' &&
-          event.payload &&
-          'severity' in event.payload
-            ? String(
-                (event.payload as { severity?: unknown }).severity ?? 'medium',
-              )
-            : 'medium',
-        message: event.message ?? 'Rule breach',
-        occurredAt: event.recordedAt.toISOString(),
-      }));
+      .map((event) => {
+        const payload =
+          typeof event.payload === 'object' && event.payload
+            ? (event.payload as Record<string, unknown>)
+            : null;
+        const code =
+          payload &&
+          (typeof payload.code === 'string' || typeof payload.code === 'number')
+            ? String(payload.code)
+            : 'BREACH';
+        const severity =
+          payload &&
+          (typeof payload.severity === 'string' ||
+            typeof payload.severity === 'number')
+            ? String(payload.severity)
+            : 'medium';
+        return {
+          id: event.id,
+          code,
+          severity,
+          message: event.message ?? 'Rule breach',
+          occurredAt: event.recordedAt.toISOString(),
+        };
+      });
 
     return {
       vehicle,
@@ -476,11 +472,7 @@ export class TelematicsService {
     };
   }
 
-  async setImmobilized(
-    vehicleId: string,
-    immobilize: boolean,
-    actor: User,
-  ) {
+  async setImmobilized(vehicleId: string, immobilize: boolean, actor: User) {
     if (actor.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException(
         'Only Super Admin can immobilize or mobilize vehicles',

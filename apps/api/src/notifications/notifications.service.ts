@@ -11,6 +11,9 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '../generated/prisma/client';
 import type { ListNotificationsQuery } from './notifications.schemas';
+import { NON_TERMINAL_LICENCE_STATUSES } from '../licences/licence.constants';
+import { licenceUrgencyForExpiry } from '../licences/licence.urgency';
+import { LicenceRenewalStatus } from '../generated/prisma/enums';
 
 const SERVICE_DUE_DAYS = 14;
 const BREACH_LOOKBACK_DAYS = 7;
@@ -73,9 +76,10 @@ export class NotificationsService {
 
     return {
       unreadCount: items.filter((item) => !item.isRead).length,
-      items: query.includeRead === false
-        ? items.filter((item) => !item.isRead)
-        : items,
+      items:
+        query.includeRead === false
+          ? items.filter((item) => !item.isRead)
+          : items,
     };
   }
 
@@ -155,6 +159,7 @@ export class NotificationsService {
       recentBreaches,
       serviceDueVehicles,
       nearingContracts,
+      openLicences,
     ] = await Promise.all([
       this.prisma.ledgerEntry.findMany({
         where: {
@@ -210,6 +215,17 @@ export class NotificationsService {
         },
         include: { client: true, vehicle: true },
         take: 30,
+      }),
+      this.prisma.licenceRenewal.findMany({
+        where: {
+          status: {
+            in: [...NON_TERMINAL_LICENCE_STATUSES] as LicenceRenewalStatus[],
+          },
+        },
+        include: {
+          vehicle: { select: { id: true, registration: true } },
+        },
+        take: 80,
       }),
     ]);
 
@@ -296,15 +312,45 @@ export class NotificationsService {
         dedupeKey: `term-${contract.id}`,
         kind: NotificationKind.END_OF_TERM,
         severity:
-          days <= 30
-            ? NotificationSeverity.HIGH
-            : NotificationSeverity.MEDIUM,
+          days <= 30 ? NotificationSeverity.HIGH : NotificationSeverity.MEDIUM,
         title: `${contract.client.firstName} ${contract.client.lastName}`,
         detail: `Contract ends in ${days} day${days === 1 ? '' : 's'} · ${contract.vehicle.registration}`,
         href: `/contracts/${contract.id}`,
         amount: null,
         entityType: 'CONTRACT',
         entityId: contract.id,
+      });
+    }
+
+    for (const renewal of openLicences) {
+      const { daysRemaining, urgency } = licenceUrgencyForExpiry(
+        renewal.expiryDate,
+        now,
+      );
+      if (
+        urgency !== 'WARN_60' &&
+        urgency !== 'ACTION_30' &&
+        urgency !== 'EXPIRED'
+      ) {
+        continue;
+      }
+      const detail =
+        urgency === 'EXPIRED'
+          ? `Licence expired ${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) === 1 ? '' : 's'} ago`
+          : `Licence due in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`;
+      seeds.push({
+        dedupeKey: `licence-${renewal.id}`,
+        kind: NotificationKind.LICENCE_DUE,
+        severity:
+          urgency === 'WARN_60'
+            ? NotificationSeverity.MEDIUM
+            : NotificationSeverity.HIGH,
+        title: renewal.vehicle.registration,
+        detail,
+        href: `/licences`,
+        amount: null,
+        entityType: 'LICENCE_RENEWAL',
+        entityId: renewal.id,
       });
     }
 

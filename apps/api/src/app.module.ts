@@ -13,6 +13,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { GhlModule } from './ghl/ghl.module';
 import { PipelineModule } from './pipeline/pipeline.module';
 import { FinesModule } from './fines/fines.module';
+import { LicencesModule } from './licences/licences.module';
+import { LeadsModule } from './leads/leads.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -39,6 +41,8 @@ import { AppService } from './app.service';
     GhlModule,
     PipelineModule,
     FinesModule,
+    LicencesModule,
+    LeadsModule,
     DashboardModule,
   ],
   controllers: [AppController],

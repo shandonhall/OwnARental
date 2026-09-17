@@ -3,10 +3,7 @@ import { Prisma } from '../generated/prisma/client';
 import { LedgerEntryStatus, LedgerEntryType } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContractsService } from '../contracts/contracts.service';
-import {
-  CreateLedgerEntryDto,
-  UpdateLedgerEntryDto,
-} from './ledger.schemas';
+import { CreateLedgerEntryDto, UpdateLedgerEntryDto } from './ledger.schemas';
 import type { User } from '../generated/prisma/client';
 import { GhlService } from '../ghl/ghl.service';
 
@@ -28,11 +25,7 @@ export class LedgerService {
     return contract;
   }
 
-  async create(
-    contractId: string,
-    data: CreateLedgerEntryDto,
-    user?: User,
-  ) {
+  async create(contractId: string, data: CreateLedgerEntryDto, user?: User) {
     await this.ensureContract(contractId);
 
     const status = data.status ?? LedgerEntryStatus.PENDING;

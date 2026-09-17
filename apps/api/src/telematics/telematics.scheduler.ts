@@ -43,7 +43,7 @@ export class TelematicsSchedulerService
         : DEFAULT_INTERVAL_MS;
   }
 
-  async onModuleInit() {
+  onModuleInit() {
     const redisUrl = this.config.get<string>('REDIS_URL')?.trim();
     if (redisUrl) {
       try {

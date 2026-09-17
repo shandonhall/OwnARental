@@ -85,16 +85,15 @@ export class ClientsService {
     }
 
     const activeContract =
-      client.contracts.find((c) =>
-        ['ACTIVE', 'ARREARS'].includes(c.status),
-      ) ?? client.contracts[0] ?? null;
+      client.contracts.find((c) => ['ACTIVE', 'ARREARS'].includes(c.status)) ??
+      client.contracts[0] ??
+      null;
 
     const pendingFines = client.contracts.flatMap((c) =>
       c.ledger.map((entry) => ({
         id: entry.id,
         kind: entry.type,
-        detail:
-          entry.type === 'TOLL' ? 'Outstanding toll' : 'Outstanding fine',
+        detail: entry.type === 'TOLL' ? 'Outstanding toll' : 'Outstanding fine',
         amount: Number(entry.amount).toFixed(2),
         contractId: c.id,
       })),

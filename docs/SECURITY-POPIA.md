@@ -82,17 +82,24 @@ UPDATE public.users SET role = 'ADMIN' WHERE email = 'you@ownarental.co.za';
 -- SUPER_ADMIN for remote immobilization
 ```
 
-Demo pitch account: `npm run prisma:demo-admin` (local only; do not use demo passwords in production).
+Demo pitch accounts (local only): `npm run prisma:demo-admin` or `npm run prisma:demo-roles` (Super Admin, Manager, Fleet, Finance, Sales). Do not use demo passwords in production.
 
 ## RBAC (enforced in API)
 
-| Action | Roles |
+Roles (stored enum → display): `SUPER_ADMIN` (Super Admin), `ADMIN` (Manager / Admin), `FLEET_MANAGER` (Fleet / Licensing), `SALES` (Sales), `FINANCE` (Finance).
+
+Domain capabilities live in `apps/api/src/auth/permissions.ts` (`ROLE_PERMISSIONS` + `@RequirePermissions`). UI mirrors the same matrix in `apps/web/src/lib/permissions.ts`. Hiding a nav link is not authorisation — Nest `PermissionsGuard` is authoritative.
+
+| Capability (examples) | Typical roles |
 |--------|--------|
-| View fleet / clients / contracts / ledger | Any active staff (`FLEET_MANAGER`+) |
-| Deactivate client / retire vehicle | `ADMIN`, `SUPER_ADMIN` |
-| Ledger void / sensitive ledger ops | `ADMIN`, `SUPER_ADMIN` |
-| Remote immobilize / mobilize | `SUPER_ADMIN` only |
-| GHL comms run | `ADMIN`, `SUPER_ADMIN` |
+| Dashboard / clients / fleet read | SUPER_ADMIN, ADMIN, FLEET_MANAGER, FINANCE, SALES |
+| Contracts + Schedule A finance | SUPER_ADMIN, ADMIN, FINANCE (Fleet: contract ops summary without commercial breakdown) |
+| Profitability / ledger write | SUPER_ADMIN, ADMIN, FINANCE |
+| Telematics sync / live map | SUPER_ADMIN, ADMIN, FLEET_MANAGER |
+| Deactivate client / retire vehicle | SUPER_ADMIN, ADMIN (`CLIENTS_DELETE` / `FLEET_DELETE`) |
+| Remote immobilize / mobilize | `SUPER_ADMIN` only (`TELEMATICS_IMMOBILIZE`) |
+| Automation manage (GHL run) | SUPER_ADMIN, ADMIN |
+| User management | Reserved (`USERS_MANAGE` → SUPER_ADMIN; no staff admin UI yet) |
 
 Inactive users (`is_active = false`) cannot obtain API access.
 
@@ -108,7 +115,7 @@ Inactive users (`is_active = false`) cannot obtain API access.
 
 ## Application hardening (in repo)
 
-- Global `AuthGuard` + `RolesGuard` on Nest controllers
+- Global `AuthGuard` + `RolesGuard` + `PermissionsGuard` on Nest controllers
 - Zod validation on mutating endpoints
 - Helmet on API; security headers on Next.js
 - CORS limited to `WEB_ORIGIN` (+ localhost in non-production)

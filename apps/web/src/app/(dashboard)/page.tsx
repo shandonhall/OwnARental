@@ -623,6 +623,80 @@ export default function HomeDashboardPage() {
             />
           </div>
 
+          {(data?.viewer?.role === 'SUPER_ADMIN' ||
+          data?.viewer?.role === 'ADMIN' ||
+          data?.viewer?.role === 'FLEET_MANAGER') ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Link href="/licences?urgency=EXPIRED" className="block">
+                <KpiCard
+                  label="Licences expired"
+                  value={kpi?.licenceExpired ?? 0}
+                  hint="Open cycles past expiry"
+                  accent="#c01725"
+                />
+              </Link>
+              <Link href="/licences?urgency=ACTION_30" className="block">
+                <KpiCard
+                  label="Licences ≤30 days"
+                  value={kpi?.licenceDue30 ?? 0}
+                  hint="Action window"
+                  accent="#eab024"
+                />
+              </Link>
+              <Link href="/licences?urgency=WARN_60" className="block">
+                <KpiCard
+                  label="Licences ≤60 days"
+                  value={kpi?.licenceDue60 ?? 0}
+                  hint="31–60 day warning band"
+                  accent="#1680ab"
+                />
+              </Link>
+            </div>
+          ) : null}
+
+          {data?.viewer?.role === 'SUPER_ADMIN' ||
+          data?.viewer?.role === 'ADMIN' ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link href="/leads?unassigned=true" className="block">
+                <KpiCard
+                  label="Leads unassigned"
+                  value={kpi?.leadsUnassigned ?? 0}
+                  hint="Queue needs an owner"
+                  accent="#c01725"
+                />
+              </Link>
+              <Link href="/leads?notAttempted=true" className="block">
+                <KpiCard
+                  label="Leads not attempted"
+                  value={kpi?.leadsNotAttempted ?? 0}
+                  hint="No first attempt logged"
+                  accent="#eab024"
+                />
+              </Link>
+            </div>
+          ) : null}
+
+          {data?.viewer?.role === 'SALES' ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link href="/leads?stage=NEW" className="block">
+                <KpiCard
+                  label="My new leads"
+                  value={kpi?.leadsMyNew ?? 0}
+                  hint="Assigned to you · NEW"
+                  accent="#1680ab"
+                />
+              </Link>
+              <Link href="/leads?notAttempted=true" className="block">
+                <KpiCard
+                  label="My not attempted"
+                  value={kpi?.leadsMyNotAttempted ?? 0}
+                  hint="Still awaiting first attempt"
+                  accent="#eab024"
+                />
+              </Link>
+            </div>
+          ) : null}
+
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <Panel>
               <div className="mb-5 flex items-start justify-between gap-3">

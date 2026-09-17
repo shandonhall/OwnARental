@@ -13,6 +13,9 @@
     "prisma:push": "prisma db push",
     "prisma:seed": "npx tsx prisma/seed.ts",
     "prisma:demo-admin": "node prisma/ensure-demo-admin.cjs",
+    "prisma:demo-roles": "node prisma/ensure-demo-roles.cjs",
+    "prisma:apply-phase1c": "node prisma/apply-phase1c-licence-renewals.cjs",
+    "prisma:apply-phase2a": "node prisma/apply-phase2a-leads.cjs",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
@@ -26,5 +29,9 @@
     "prisma": "^7.9.1",
     "tsx": "^4.23.1",
     "typescript": "^5.9.2"
+  },
+  "overrides": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   }
 }

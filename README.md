@@ -62,11 +62,17 @@ update users set role = 'ADMIN' where email = 'you@ownarental.co.za';
 -- SUPER_ADMIN for immobilization later
 ```
 
-| Role | Label | Rights |
+| Role | Label | Rights (summary) |
 |------|-------|--------|
-| `FLEET_MANAGER` | User | View/create/edit clients & vehicles |
-| `ADMIN` | Admin | + deactivate clients / retire vehicles |
-| `SUPER_ADMIN` | Super Admin | + remote immobilize / mobilize |
+| `SUPER_ADMIN` | Super Admin | Full access including immobilisation |
+| `ADMIN` | Manager / Admin | Broad ops; no immobilisation / user-mgmt UI |
+| `FLEET_MANAGER` | Fleet / Licensing | Fleet, map, telematics, limited contracts |
+| `FINANCE` | Finance | Contracts, Schedule A, profitability, ledger |
+| `SALES` | Sales | Clients + fleet availability (CRM later) |
+
+Local demo accounts: `npm run prisma:demo-roles` (see Phase 1B).
+
+Permission matrix: `apps/api/src/auth/permissions.ts` (API) and `apps/web/src/lib/permissions.ts` (UI).
 
 ## Phase 1 checklist (Foundation)
 

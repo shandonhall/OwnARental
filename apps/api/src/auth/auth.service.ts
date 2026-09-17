@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '../generated/prisma/enums';
+import { permissionsForRole, roleLabel } from './permissions';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +21,7 @@ export class AuthService {
     const anonKey = this.config.getOrThrow<string>(
       'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     );
-    this.supabase = createClient(url, anonKey);
+    this.supabase = createClient(url, anonKey) as SupabaseClient;
   }
 
   /** First-time dashboard users must exist in `users` unless auto-provision is enabled (dev). */
@@ -87,6 +88,12 @@ export class AuthService {
   }
 
   getMe(userId: string) {
-    return this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return this.prisma.user
+      .findUniqueOrThrow({ where: { id: userId } })
+      .then((user) => ({
+        ...user,
+        roleLabel: roleLabel(user.role),
+        permissions: permissionsForRole(user.role),
+      }));
   }
 }

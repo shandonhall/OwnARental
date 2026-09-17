@@ -10,7 +10,7 @@ import type {
 export class MockCarTrackProvider implements CarTrackProvider {
   readonly mode = 'mock' as const;
 
-  async fetchSnapshot(
+  fetchSnapshot(
     deviceId: string,
     context?: SnapshotContext,
   ): Promise<CarTrackSnapshot> {
@@ -36,7 +36,7 @@ export class MockCarTrackProvider implements CarTrackProvider {
       ((Date.now() / 1000 / 60) % 60) * (dailyKm / (24 * 60)),
     );
 
-    return {
+    return Promise.resolve({
       deviceId,
       lat: Number((baseLat + jitter).toFixed(7)),
       lng: Number((baseLng - jitter / 2).toFixed(7)),
@@ -45,15 +45,19 @@ export class MockCarTrackProvider implements CarTrackProvider {
       recordedAt: new Date(),
       scoreBreakdown,
       ruleBreaches,
-    };
+    });
   }
 
-  async immobilize(_deviceId: string): Promise<void> {
+  immobilize(deviceId: string): Promise<void> {
+    void deviceId;
     // Mock success — live provider would call CarTrack immobilize endpoint
+    return Promise.resolve();
   }
 
-  async mobilize(_deviceId: string): Promise<void> {
+  mobilize(deviceId: string): Promise<void> {
+    void deviceId;
     // Mock success
+    return Promise.resolve();
   }
 }
 

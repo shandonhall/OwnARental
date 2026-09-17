@@ -23,7 +23,9 @@ export class FinesSchedulerService implements OnModuleInit, OnModuleDestroy {
   ) {
     this.autoSyncEnabled =
       (this.config.get<string>('FINES_AUTO_SYNC') ?? 'true') !== 'false';
-    const configured = Number(this.config.get<string>('FINES_SYNC_INTERVAL_MS'));
+    const configured = Number(
+      this.config.get<string>('FINES_SYNC_INTERVAL_MS'),
+    );
     this.intervalMs =
       Number.isFinite(configured) && configured >= 60_000
         ? configured

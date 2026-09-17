@@ -1,8 +1,8 @@
 import { Controller, Get, Post } from '@nestjs/common';
 import { GhlService } from './ghl.service';
 import { GhlSchedulerService } from './ghl.scheduler';
-import { Roles } from '../auth/roles.decorator';
-import { Role } from '../generated/prisma/enums';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { Permission } from '../auth/permissions';
 
 @Controller('ghl')
 export class GhlController {
@@ -12,6 +12,7 @@ export class GhlController {
   ) {}
 
   @Get('status')
+  @RequirePermissions(Permission.AUTOMATION_READ)
   getStatus() {
     return {
       ...this.ghlService.getStatus(),
@@ -20,7 +21,7 @@ export class GhlController {
   }
 
   @Post('comms/run')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @RequirePermissions(Permission.AUTOMATION_MANAGE)
   async runComms() {
     await this.scheduler.tick();
     return {

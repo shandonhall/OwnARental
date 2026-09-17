@@ -63,7 +63,9 @@ export function predictNextService(input: {
   const daysUntil = avg > 0 ? remainingKm / avg : 90;
   const now = input.now ?? new Date();
   const nextServiceDueDate = new Date(now);
-  nextServiceDueDate.setDate(nextServiceDueDate.getDate() + Math.ceil(daysUntil));
+  nextServiceDueDate.setDate(
+    nextServiceDueDate.getDate() + Math.ceil(daysUntil),
+  );
 
   return {
     nextServiceDueKm: nextDueKm,
@@ -82,8 +84,7 @@ export function mileageAgainstLimit(input: {
   const limit = input.monthlyLimit ?? input.contractMonthlyLimit ?? null;
   const avgRaw =
     input.averageDailyKm != null ? Number(input.averageDailyKm) : 0;
-  const avg =
-    avgRaw > 0 ? Number(clampAverageDailyKm(avgRaw)) : 0;
+  const avg = avgRaw > 0 ? Number(clampAverageDailyKm(avgRaw)) : 0;
   const projectedMonthly = Math.round(avg * 30);
 
   return {

@@ -11,19 +11,17 @@ export class MockGhlProvider implements GhlProvider {
   readonly mode = 'mock' as const;
   private readonly logger = new Logger(MockGhlProvider.name);
 
-  async upsertContact(
-    input: GhlContactInput,
-  ): Promise<{ contactId: string }> {
+  upsertContact(input: GhlContactInput): Promise<{ contactId: string }> {
     const contactId =
       input.existingContactId ??
       `MOCK-CONTACT-${input.clientId.replace(/-/g, '').slice(0, 10)}`;
     this.logger.log(
       `[mock] upsert contact ${contactId} · ${input.firstName} ${input.lastName} · ${input.phone}`,
     );
-    return { contactId };
+    return Promise.resolve({ contactId });
   }
 
-  async createOpportunity(
+  createOpportunity(
     input: GhlOpportunityInput,
   ): Promise<{ opportunityId: string }> {
     const opportunityId =
@@ -32,16 +30,14 @@ export class MockGhlProvider implements GhlProvider {
     this.logger.log(
       `[mock] opportunity ${opportunityId} · ${input.clientName} · ${input.vehicleRegistration} · ${input.daysRemaining}d remaining`,
     );
-    return { opportunityId };
+    return Promise.resolve({ opportunityId });
   }
 
-  async emitWorkflow(
-    payload: GhlWorkflowPayload,
-  ): Promise<{ messageId: string }> {
+  emitWorkflow(payload: GhlWorkflowPayload): Promise<{ messageId: string }> {
     const messageId = `mock-msg-${Date.now().toString(36)}`;
     this.logger.log(
       `[mock] workflow ${payload.event} → ${payload.client?.phone ?? 'n/a'} · ${payload.detail ?? ''}`,
     );
-    return { messageId };
+    return Promise.resolve({ messageId });
   }
 }

@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { api, ContractStatus } from '@/lib/api';
+import { api, ContractStatus, hasPermission } from '@/lib/api';
+import { Permission } from '@/lib/permissions';
 import { formatMoney, moneyCellClass } from '@/lib/format-money';
 import { useTableSort } from '@/lib/table-sort';
 
@@ -18,6 +19,18 @@ const STATUS_FILTERS: Array<{ value: ContractStatus | 'ALL'; label: string }> = 
 export default function ContractsPage() {
   const [status, setStatus] = useState<ContractStatus | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
+
+  const me = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => api.getMe(),
+    retry: false,
+  });
+  const canWrite = me.data
+    ? hasPermission(me.data.role, Permission.CONTRACTS_WRITE)
+    : false;
+  const canSeeFinance = me.data
+    ? hasPermission(me.data.role, Permission.CONTRACTS_FINANCE_READ)
+    : false;
 
   const query = useQuery({
     queryKey: ['contracts', status, search],
@@ -35,6 +48,7 @@ export default function ContractsPage() {
 
   const accessors = useMemo(
     () => ({
+      agreement: (c: (typeof rows)[number]) => c.agreementNumber ?? '',
       client: (c: (typeof rows)[number]) =>
         `${c.client.lastName} ${c.client.firstName}`,
       vehicle: (c: (typeof rows)[number]) => c.vehicle.registration,
@@ -64,12 +78,14 @@ export default function ContractsPage() {
             with / without balloon.
           </p>
         </div>
-        <Link
-          href="/contracts/new"
-          className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
-        >
-          New contract
-        </Link>
+        {canWrite ? (
+          <Link
+            href="/contracts/new"
+            className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-[#13729a]"
+          >
+            New contract
+          </Link>
+        ) : null}
       </div>
 
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -92,7 +108,7 @@ export default function ContractsPage() {
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search client or registration"
+          placeholder="Search agreement #, client, or registration"
           className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-navy outline-none placeholder:text-slate-500 focus:border-teal-400/50 md:w-72 dark:border-slate-700 dark:bg-slate-900 dark:placeholder:text-slate-400"
         />
       </div>
@@ -101,12 +117,13 @@ export default function ContractsPage() {
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 text-slate-600 dark:text-slate-300 dark:border-slate-700">
             <tr>
+              <SortTh column="agreement">Agreement #</SortTh>
               <SortTh column="client">Client</SortTh>
               <SortTh column="vehicle">Vehicle</SortTh>
               <SortTh column="plan">Plan</SortTh>
               <SortTh column="status">Status</SortTh>
               <SortTh column="monthly" align="right">
-                Monthly
+                All-In monthly
               </SortTh>
               <SortTh column="progress">Progress</SortTh>
               <SortTh column="daysLeft" align="right">
@@ -129,29 +146,34 @@ export default function ContractsPage() {
           <tbody>
             {query.isLoading && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-slate-600 dark:text-slate-300">
+                <td colSpan={12} className="px-4 py-8 text-slate-600 dark:text-slate-300">
                   Loading contracts…
                 </td>
               </tr>
             )}
             {query.isError && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-danger">
+                <td colSpan={12} className="px-4 py-8 text-danger">
                   Could not load contracts.
                 </td>
               </tr>
             )}
             {!query.isLoading && !query.isError && sorted.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-slate-600 dark:text-slate-300">
-                  No contracts yet.{' '}
-                  <Link
-                    href="/contracts/new"
-                    className="text-brand hover:underline"
-                  >
-                    Create one
-                  </Link>
-                  .
+                <td colSpan={12} className="px-4 py-8 text-slate-600 dark:text-slate-300">
+                  No contracts yet.
+                  {canWrite ? (
+                    <>
+                      {' '}
+                      <Link
+                        href="/contracts/new"
+                        className="text-brand hover:underline"
+                      >
+                        Create one
+                      </Link>
+                      .
+                    </>
+                  ) : null}
                 </td>
               </tr>
             )}
@@ -166,6 +188,9 @@ export default function ContractsPage() {
                   key={contract.id}
                   className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/40"
                 >
+                  <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200">
+                    {contract.agreementNumber ?? '—'}
+                  </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/contracts/${contract.id}`}
@@ -184,7 +209,9 @@ export default function ContractsPage() {
                     {contract.status}
                   </td>
                   <td className={`${moneyCellClass} text-navy`}>
-                    {formatMoney(contract.monthlyRate)}
+                    {canSeeFinance || !contract.financeRestricted
+                      ? formatMoney(contract.monthlyRate)
+                      : 'Restricted'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="min-w-28">

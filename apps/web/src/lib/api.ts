@@ -1,28 +1,27 @@
 import { createClient } from '@/lib/supabase/client';
+import {
+  type Permission,
+  type Role,
+  hasPermission,
+  isAdminRole,
+  roleLabel,
+} from '@/lib/permissions';
+
+export type { Permission, Role };
+export { hasPermission, isAdminRole, roleLabel };
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
-
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'FLEET_MANAGER';
 
 export type AuthUser = {
   id: string;
   email: string;
   fullName: string;
   role: Role;
+  roleLabel?: string;
+  permissions?: Permission[];
   isActive: boolean;
 };
-
-export function isAdminRole(role: Role | string) {
-  return role === 'ADMIN' || role === 'SUPER_ADMIN';
-}
-
-export function roleLabel(role: Role | string) {
-  if (role === 'SUPER_ADMIN') return 'Super Admin';
-  if (role === 'ADMIN') return 'Admin';
-  if (role === 'FLEET_MANAGER') return 'Fleet Manager';
-  return 'User';
-}
 
 export type TaskCategory =
   | 'collections'
@@ -85,7 +84,8 @@ export type Vehicle = {
     id: string;
     planType: string;
     status: string;
-    monthlyRate: string;
+    monthlyRate: string | null;
+    financeRestricted?: boolean;
     client: {
       id: string;
       firstName: string;
@@ -93,7 +93,395 @@ export type Vehicle = {
       city?: string;
     };
   }>;
+  currentLicence?: LicenceRenewalSummary | null;
 };
+
+export type LicenceUrgency = 'OK' | 'WARN_60' | 'ACTION_30' | 'EXPIRED';
+
+export type LicenceRenewalStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'RENEWED'
+  | 'RECEIVED'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export type LicenceRenewalSummary = {
+  id: string;
+  status: LicenceRenewalStatus;
+  expiryDate: string;
+  renewedExpiryDate: string | null;
+  renewalCost: string | null;
+  clientNotifiedAt: string | null;
+  daysRemaining: number;
+  urgency: LicenceUrgency;
+  responsibleUser: {
+    id: string;
+    fullName: string;
+    email: string;
+    role: string;
+  } | null;
+  client: { id: string; firstName: string; lastName: string } | null;
+};
+
+export type LicenceRenewal = LicenceRenewalSummary & {
+  vehicleId?: string;
+  contractId?: string | null;
+  clientId?: string | null;
+  responsibleUserId?: string | null;
+  renewalStartedAt?: string | null;
+  renewedAt?: string | null;
+  receivedAt?: string | null;
+  sentAt?: string | null;
+  collectedAt?: string | null;
+  notes?: string | null;
+  vehicle: {
+    id: string;
+    make: string;
+    model: string;
+    year: number;
+    registration: string;
+    status: string;
+  };
+  contract: {
+    id: string;
+    status: string;
+    agreementNumber: string | null;
+  } | null;
+};
+
+export type LeadSource =
+  | 'META_LEAD_FORM'
+  | 'WEBSITE'
+  | 'MANUAL'
+  | 'PHONE_IN'
+  | 'FACEBOOK_MESSENGER'
+  | 'OTHER';
+
+export type LeadCreativeType = 'VIDEO' | 'GRAPHIC' | 'UNKNOWN';
+
+export type LeadStage =
+  | 'NEW'
+  | 'CONTACTED'
+  | 'QUALIFYING'
+  | 'DOCUMENTS_REQUESTED'
+  | 'APPLICATION_SUBMITTED'
+  | 'APPROVED'
+  | 'VEHICLE_SELECTED'
+  | 'CLOSED_WON'
+  | 'CLOSED_LOST';
+
+export type LeadQualificationStatus =
+  | 'UNASSESSED'
+  | 'QUALIFIED'
+  | 'UNQUALIFIED';
+
+export type LeadDisqualificationReason =
+  | 'UBER_BOLT'
+  | 'AFFORDABILITY'
+  | 'INVALID_OR_NO_DRIVERS_LICENCE'
+  | 'UNREACHABLE'
+  | 'NOT_INTERESTED'
+  | 'OUTSIDE_REQUIREMENTS'
+  | 'NO_SUITABLE_VEHICLE'
+  | 'DUPLICATE'
+  | 'OTHER';
+
+export type LeadLossReason =
+  | 'APPLICATION_DECLINED'
+  | 'CUSTOMER_WITHDREW'
+  | 'NO_SUITABLE_VEHICLE'
+  | 'UNREACHABLE'
+  | 'DUPLICATE'
+  | 'OTHER';
+
+export type LeadContactChannel =
+  | 'PHONE'
+  | 'WHATSAPP'
+  | 'EMAIL'
+  | 'SMS'
+  | 'OTHER';
+
+export type LeadDeliverySystem = 'NONE' | 'VMG' | 'OTHER';
+
+export type LeadMark =
+  | 'attempt'
+  | 'contacted'
+  | 'qualify'
+  | 'unqualify'
+  | 'request_documents'
+  | 'documents_received'
+  | 'advance'
+  | 'close_won'
+  | 'close_lost';
+
+export type LeadResponseBasis = 'SOURCE' | 'INGEST';
+
+export type LeadStaffUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  role: Role | string;
+};
+
+export type Lead = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  cellphone: string;
+  email: string | null;
+  area: string | null;
+  salaryBand: string | null;
+  rentalType: string | null;
+  vehicleNeededTiming: string | null;
+  vehiclePreference: string | null;
+  hasValidDriversLicence: boolean | null;
+  requestedVehicleId: string | null;
+  source: LeadSource;
+  sourceDetail: string | null;
+  platform: string | null;
+  campaignId: string | null;
+  campaignName: string | null;
+  adSetId: string | null;
+  adSetName: string | null;
+  adId: string | null;
+  adName: string | null;
+  formId: string | null;
+  formName: string | null;
+  creativeType: LeadCreativeType;
+  creativeLabel: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  externalLeadId: string | null;
+  sourceCreatedAt: string | null;
+  assignedUserId: string | null;
+  assignedAt: string | null;
+  firstAttemptAt: string | null;
+  firstAttemptChannel: LeadContactChannel | null;
+  firstContactAt: string | null;
+  firstContactChannel: LeadContactChannel | null;
+  lastContactAt: string | null;
+  stage: LeadStage;
+  qualificationStatus: LeadQualificationStatus;
+  disqualificationReason: LeadDisqualificationReason | null;
+  disqualificationNotes: string | null;
+  lossReason: LeadLossReason | null;
+  lossNotes: string | null;
+  documentsReceivedAt: string | null;
+  closedAt: string | null;
+  clientId: string | null;
+  wonContractId: string | null;
+  duplicateOfLeadId: string | null;
+  deliverySystem: LeadDeliverySystem;
+  externalDeliveryId: string | null;
+  externalDeliveryStatus: string | null;
+  externalDeliveredAt: string | null;
+  notes: string | null;
+  archivedAt: string | null;
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  responseBasis: LeadResponseBasis;
+  firstAttemptResponseHours: number | null;
+  firstContactResponseHours: number | null;
+  assignedUser: LeadStaffUser | null;
+  createdByUser: LeadStaffUser | null;
+  requestedVehicle: {
+    id: string;
+    make: string;
+    model: string;
+    year: number;
+    registration: string;
+    status: string;
+  } | null;
+  client: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string | null;
+  } | null;
+};
+
+export type LeadDuplicate = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  cellphone: string;
+  email: string | null;
+  stage: LeadStage;
+  creativeType: LeadCreativeType;
+  source: LeadSource;
+  createdAt: string;
+  assignedUserId: string | null;
+};
+
+export type LeadDetail = Lead & {
+  possibleDuplicates: LeadDuplicate[];
+};
+
+export type LeadAssignment = {
+  id: string;
+  leadId: string;
+  userId: string;
+  assignedAt: string;
+  unassignedAt: string | null;
+  assignedByUserId: string | null;
+  reason: string | null;
+  user: LeadStaffUser;
+  assignedByUser: LeadStaffUser | null;
+};
+
+export type LeadStageHistoryEntry = {
+  id: string;
+  leadId: string;
+  fromStage: LeadStage | null;
+  toStage: LeadStage;
+  actorUserId: string | null;
+  changedAt: string;
+  reason: string | null;
+  actorUser: LeadStaffUser | null;
+};
+
+export type LeadCreativeReportBucket = {
+  creativeType: LeadCreativeType;
+  rawLeads: number;
+  unassessed: number;
+  qualified: number;
+  unqualified: number;
+  assessedQualificationRate: number | null;
+  applicationSubmitted: number;
+  approved: number;
+  closedWon: number;
+  closedLost: number;
+  medianFirstAttemptHours: number | null;
+  medianFirstContactHours: number | null;
+  responseBasisCounts: Record<LeadResponseBasis, number>;
+};
+
+export type LeadCreativeReport = {
+  label: string;
+  note: string;
+  buckets: LeadCreativeReportBucket[];
+};
+
+export type ListLeadsParams = {
+  mine?: boolean;
+  unassigned?: boolean;
+  stage?: LeadStage;
+  qualification?: LeadQualificationStatus;
+  creativeType?: LeadCreativeType;
+  source?: LeadSource;
+  assignedUserId?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+  includeArchived?: boolean;
+};
+
+export type CreateLeadInput = {
+  firstName: string;
+  lastName: string;
+  cellphone: string;
+  email?: string | null;
+  area?: string | null;
+  salaryBand?: string | null;
+  rentalType?: string | null;
+  vehicleNeededTiming?: string | null;
+  vehiclePreference?: string | null;
+  hasValidDriversLicence?: boolean | null;
+  requestedVehicleId?: string | null;
+  source: LeadSource;
+  sourceDetail?: string | null;
+  platform?: string | null;
+  campaignId?: string | null;
+  campaignName?: string | null;
+  adSetId?: string | null;
+  adSetName?: string | null;
+  adId?: string | null;
+  adName?: string | null;
+  formId?: string | null;
+  formName?: string | null;
+  creativeType?: LeadCreativeType;
+  creativeLabel?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmContent?: string | null;
+  externalLeadId?: string | null;
+  sourceCreatedAt?: string | null;
+  notes?: string | null;
+  assignedUserId?: string | null;
+  duplicateOfLeadId?: string | null;
+};
+
+export type UpdateLeadInput = {
+  firstName?: string;
+  lastName?: string;
+  cellphone?: string;
+  email?: string | null;
+  area?: string | null;
+  salaryBand?: string | null;
+  rentalType?: string | null;
+  vehicleNeededTiming?: string | null;
+  vehiclePreference?: string | null;
+  hasValidDriversLicence?: boolean | null;
+  requestedVehicleId?: string | null;
+  notes?: string | null;
+  duplicateOfLeadId?: string | null;
+  clientId?: string | null;
+  wonContractId?: string | null;
+  archivedAt?: string | null;
+  source?: LeadSource;
+  sourceDetail?: string | null;
+  platform?: string | null;
+  campaignId?: string | null;
+  campaignName?: string | null;
+  adSetId?: string | null;
+  adSetName?: string | null;
+  adId?: string | null;
+  adName?: string | null;
+  formId?: string | null;
+  formName?: string | null;
+  creativeType?: LeadCreativeType;
+  creativeLabel?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmContent?: string | null;
+  externalLeadId?: string | null;
+  sourceCreatedAt?: string | null;
+  mark?: LeadMark;
+  channel?: LeadContactChannel;
+  disqualificationReason?: LeadDisqualificationReason;
+  disqualificationNotes?: string | null;
+  lossReason?: LeadLossReason;
+  lossNotes?: string | null;
+  advanceTo?: LeadStage;
+  stage?: LeadStage;
+};
+
+export type ConvertLeadClientInput =
+  | { clientId: string; create?: undefined }
+  | {
+      clientId?: undefined;
+      create: {
+        firstName: string;
+        lastName: string;
+        idNumber: string;
+        email?: string | null;
+        phone: string;
+        altPhone?: string | null;
+        addressLine1: string;
+        addressLine2?: string | null;
+        city: string;
+        province?: string | null;
+        postalCode?: string | null;
+        notes?: string | null;
+      };
+    };
 
 export type Client = {
   id: string;
@@ -269,28 +657,55 @@ export type Contract = {
   id: string;
   clientId: string;
   vehicleId: string;
+  agreementNumber: string | null;
   planType: PlanType;
   status: ContractStatus;
   termMonths: number;
-  monthlyRate: string;
-  depositAmount: string;
+  /** Rental Amount "All In" — finance source of truth (null when finance-restricted) */
+  monthlyRate: string | null;
+  depositAmount: string | null;
   balloonAmount: string | null;
   cipPercent: number | null;
+  cipAmount: string | null;
+  vehicleValue: string | null;
+  /** Set by API when Schedule A commercial fields are stripped for the viewer */
+  financeRestricted?: boolean;
+  initialOnRoadCosts: string | null;
+  vehicleRentalAmount: string | null;
+  administrationAmount: string | null;
+  warrantyAmount: string | null;
+  servicePlanAmount: string | null;
+  trackingAmount: string | null;
+  licenceFeeAmount: string | null;
+  insuranceAmount: string | null;
+  lifeInsuranceAmount: string | null;
+  otherMonthlyAmount: string | null;
   startDate: string;
   endDate: string;
   monthlyKmLimit: number | null;
-  totalPaid: string;
-  outstandingBalance: string;
+  annualKmLimit: number | null;
+  rentalDueDay: number | null;
+  vehicleKeptAddress: string | null;
+  lifeInsuranceAccepted: boolean | null;
+  initialRegistrationComplete: boolean | null;
+  initialLicensingComplete: boolean | null;
+  insuranceComplete: boolean | null;
+  totalPaid: string | null;
+  outstandingBalance: string | null;
   outstandingExBalloon?: string;
   balloonOutstanding?: string;
   hasBalloon?: boolean;
   balloonPaid?: boolean;
   monthOwed?: string;
-  expectedTotal: string;
+  expectedTotal: string | null;
   notes: string | null;
   ghlOpportunityId?: string | null;
   endOfTermNotifiedAt?: string | null;
   termProgress: TermProgress;
+  pricingBreakdownCaptured?: boolean;
+  pricingBreakdownComplete?: boolean;
+  calculatedComponentsTotal?: string | null;
+  componentsMatchMonthlyRate?: boolean | null;
   client: {
     id: string;
     firstName: string;
@@ -312,6 +727,7 @@ export type Contract = {
 export type CreateContractInput = {
   clientId: string;
   vehicleId: string;
+  agreementNumber?: string | null;
   planType: PlanType;
   status?: ContractStatus;
   termMonths: number;
@@ -319,9 +735,28 @@ export type CreateContractInput = {
   depositAmount?: number | string;
   balloonAmount?: number | string | null;
   cipPercent?: number | null;
+  cipAmount?: number | string | null;
+  vehicleValue?: number | string | null;
+  initialOnRoadCosts?: number | string | null;
+  vehicleRentalAmount?: number | string | null;
+  administrationAmount?: number | string | null;
+  warrantyAmount?: number | string | null;
+  servicePlanAmount?: number | string | null;
+  trackingAmount?: number | string | null;
+  licenceFeeAmount?: number | string | null;
+  insuranceAmount?: number | string | null;
+  lifeInsuranceAmount?: number | string | null;
+  otherMonthlyAmount?: number | string | null;
   startDate: string;
   endDate?: string;
   monthlyKmLimit?: number | null;
+  annualKmLimit?: number | null;
+  rentalDueDay?: number | null;
+  vehicleKeptAddress?: string | null;
+  lifeInsuranceAccepted?: boolean | null;
+  initialRegistrationComplete?: boolean | null;
+  initialLicensingComplete?: boolean | null;
+  insuranceComplete?: boolean | null;
   notes?: string | null;
 };
 
@@ -431,6 +866,137 @@ export const api = {
     }),
   deleteVehicle: (id: string) =>
     apiFetch<Vehicle>(`/vehicles/${id}`, { method: 'DELETE' }),
+
+  getLicences: (params?: {
+    urgency?: LicenceUrgency | 'ALL';
+    pipeline?: 'OPEN' | 'TERMINAL' | 'ALL';
+    status?: LicenceRenewalStatus;
+    responsibleUserId?: string;
+    search?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.urgency) query.set('urgency', params.urgency);
+    if (params?.pipeline) query.set('pipeline', params.pipeline);
+    if (params?.status) query.set('status', params.status);
+    if (params?.responsibleUserId) {
+      query.set('responsibleUserId', params.responsibleUserId);
+    }
+    if (params?.search) query.set('search', params.search);
+    const qs = query.toString();
+    return apiFetch<LicenceRenewal[]>(`/licences${qs ? `?${qs}` : ''}`);
+  },
+  getLicence: (id: string) => apiFetch<LicenceRenewal>(`/licences/${id}`),
+  createLicence: (data: {
+    vehicleId: string;
+    expiryDate: string;
+    responsibleUserId?: string | null;
+    renewalCost?: number | null;
+    notes?: string | null;
+    snapshotAssignment?: boolean;
+  }) =>
+    apiFetch<LicenceRenewal>('/licences', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateLicence: (
+    id: string,
+    data: {
+      responsibleUserId?: string | null;
+      renewalCost?: number | null;
+      notes?: string | null;
+      renewedExpiryDate?: string | null;
+      contractId?: string | null;
+      clientId?: string | null;
+      status?: LicenceRenewalStatus;
+      mark?:
+        | 'start'
+        | 'renewed'
+        | 'received'
+        | 'sent'
+        | 'collected'
+        | 'cancel'
+        | 'client_notified';
+    },
+  ) =>
+    apiFetch<{ renewal: LicenceRenewal; nextCycle: LicenceRenewal | null }>(
+      `/licences/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      },
+    ),
+  getVehicleLicences: (vehicleId: string) =>
+    apiFetch<{
+      current: LicenceRenewal | null;
+      history: LicenceRenewal[];
+    }>(`/vehicles/${vehicleId}/licences`),
+
+  getLeads: (params?: ListLeadsParams) => {
+    const query = new URLSearchParams();
+    if (params?.mine != null) query.set('mine', String(params.mine));
+    if (params?.unassigned != null) {
+      query.set('unassigned', String(params.unassigned));
+    }
+    if (params?.stage) query.set('stage', params.stage);
+    if (params?.qualification) query.set('qualification', params.qualification);
+    if (params?.creativeType) query.set('creativeType', params.creativeType);
+    if (params?.source) query.set('source', params.source);
+    if (params?.assignedUserId) {
+      query.set('assignedUserId', params.assignedUserId);
+    }
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    if (params?.search) query.set('search', params.search);
+    if (params?.includeArchived != null) {
+      query.set('includeArchived', String(params.includeArchived));
+    }
+    const qs = query.toString();
+    return apiFetch<Lead[]>(`/leads${qs ? `?${qs}` : ''}`);
+  },
+  getLead: (id: string) => apiFetch<LeadDetail>(`/leads/${id}`),
+  createLead: (data: CreateLeadInput) =>
+    apiFetch<LeadDetail>('/leads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateLead: (id: string, data: UpdateLeadInput) =>
+    apiFetch<Lead>(`/leads/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  assignLead: (
+    id: string,
+    data: { userId: string; reason?: string | null },
+  ) =>
+    apiFetch<Lead>(`/leads/${id}/assign`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getLeadAssignments: (id: string) =>
+    apiFetch<LeadAssignment[]>(`/leads/${id}/assignments`),
+  getLeadStages: (id: string) =>
+    apiFetch<LeadStageHistoryEntry[]>(`/leads/${id}/stages`),
+  convertLeadClient: (id: string, data: ConvertLeadClientInput) =>
+    apiFetch<Lead>(`/leads/${id}/convert-client`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getLeadCreativeReport: (params?: {
+    from?: string;
+    to?: string;
+    includeArchived?: boolean;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    if (params?.includeArchived != null) {
+      query.set('includeArchived', String(params.includeArchived));
+    }
+    const qs = query.toString();
+    return apiFetch<LeadCreativeReport>(
+      `/leads/reports/creative${qs ? `?${qs}` : ''}`,
+    );
+  },
 
   getClients: (search?: string) => {
     const qs = search ? `?search=${encodeURIComponent(search)}` : '';
@@ -769,6 +1335,7 @@ export type DashboardAlert = {
     | 'PENDING_FINE'
     | 'SERVICE_DUE'
     | 'RULE_BREACH'
+    | 'LICENCE_DUE'
     | 'END_OF_TERM';
   severity: 'high' | 'medium';
   title: string;
@@ -806,6 +1373,8 @@ export function notificationCategory(kind: string): NotificationCategory {
     case 'PENDING_FINE':
       return 'payments';
     case 'SERVICE_DUE':
+      return 'service';
+    case 'LICENCE_DUE':
       return 'service';
     case 'RULE_BREACH':
       return 'driver';
@@ -880,6 +1449,13 @@ export type DashboardOverview = {
     serviceDue: number;
     contractsNearingCompletion: number;
     pendingFineCount?: number;
+    licenceExpired?: number;
+    licenceDue30?: number;
+    licenceDue60?: number;
+    leadsUnassigned?: number;
+    leadsNotAttempted?: number;
+    leadsMyNew?: number;
+    leadsMyNotAttempted?: number;
   };
   kpi: {
     activeFleet: number;
@@ -887,6 +1463,13 @@ export type DashboardOverview = {
     serviceDue: number;
     contractsNearingCompletion: number;
     utilizationPercent: number;
+    licenceExpired?: number;
+    licenceDue30?: number;
+    licenceDue60?: number;
+    leadsUnassigned?: number;
+    leadsNotAttempted?: number;
+    leadsMyNew?: number;
+    leadsMyNotAttempted?: number;
   };
   fleet: {
     total: number;

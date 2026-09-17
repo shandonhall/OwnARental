@@ -23,7 +23,10 @@ export const createVehicleSchema = z.object({
   vin: z.string().min(5).max(32),
   registration: z.string().min(3).max(20),
   purchasePrice: z.union([z.coerce.number().positive(), z.string().min(1)]),
-  purchaseDate: z.preprocess(emptyToNull, z.coerce.date().nullable().optional()),
+  purchaseDate: z.preprocess(
+    emptyToNull,
+    z.coerce.date().nullable().optional(),
+  ),
   status: z.nativeEnum(VehicleStatus).optional(),
   monthlyMileageLimit: optionalInt,
   carTrackDeviceId: optionalText,
