@@ -11,6 +11,7 @@ import {
 import { LeadsService } from './leads.service';
 import {
   assignLeadSchema,
+  convertLeadSchema,
   createLeadSchema,
   listLeadsQuerySchema,
   logLeadContactSchema,
@@ -18,6 +19,7 @@ import {
   updateLeadSchema,
   updateLeadStageSchema,
   type AssignLeadDto,
+  type ConvertLeadDto,
   type CreateLeadDto,
   type ListLeadsQuery,
   type LogLeadContactDto,
@@ -108,5 +110,14 @@ export class LeadsController {
     @Body(new ZodValidationPipe(logLeadContactSchema)) body: LogLeadContactDto,
   ) {
     return this.leadsService.logContact(id, body, user);
+  }
+
+  @Post(':id/convert')
+  convert(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(convertLeadSchema)) body: ConvertLeadDto,
+  ) {
+    return this.leadsService.convertToClient(id, body, user);
   }
 }

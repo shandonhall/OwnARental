@@ -160,13 +160,40 @@ export default function LeadDetailPage() {
       setMessage(error instanceof Error ? error.message : 'Contact log failed'),
   });
 
+  const convert = useMutation({
+    mutationFn: (form: FormData) =>
+      api.convertLead(id, {
+        idNumber: String(form.get('idNumber') ?? ''),
+        addressLine1: String(form.get('addressLine1') ?? ''),
+        addressLine2: emptyToNull(String(form.get('addressLine2') ?? '')),
+        city: String(form.get('city') ?? ''),
+        province: emptyToNull(String(form.get('province') ?? '')),
+        postalCode: emptyToNull(String(form.get('postalCode') ?? '')),
+        markWon: form.get('markWon') === 'true',
+      }),
+    onSuccess: async (result) => {
+      setMessage(
+        result.client
+          ? `Converted — linked to ${result.client.firstName} ${result.client.lastName}`
+          : 'Converted to client',
+      );
+      await invalidate();
+      await queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+    onError: (error) =>
+      setMessage(
+        error instanceof Error ? error.message : 'Convert to client failed',
+      ),
+  });
+
   const lead = leadQuery.data;
   const busy =
     save.isPending ||
     stage.isPending ||
     assign.isPending ||
     qualify.isPending ||
-    contact.isPending;
+    contact.isPending ||
+    convert.isPending;
 
   function onForm(
     mutation: { mutate: (form: FormData) => void },
@@ -185,12 +212,21 @@ export default function LeadDetailPage() {
         </Link>
         <h1 className="mt-2 text-3xl text-navy">
           {lead ? lead.fullName : 'Lead'}
+          {lead &&
+          (lead.sourceDetail?.toUpperCase() === 'DEMO' ||
+            lead.notes?.trim().toUpperCase().startsWith('[DEMO]')) ? (
+            <span className="ml-3 align-middle rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+              Demo
+            </span>
+          ) : null}
         </h1>
         {lead ? (
           <p className="mt-1 text-slate-600 dark:text-slate-300">
             {lead.cellphone}
             {lead.email ? ` · ${lead.email}` : ''} ·{' '}
-            {lead.source.replaceAll('_', ' ')} · {lead.stage.replaceAll('_', ' ')}
+            {lead.source.replaceAll('_', ' ')}
+            {lead.sourceDetail ? ` · ${lead.sourceDetail}` : ''} ·{' '}
+            {lead.stage.replaceAll('_', ' ')}
           </p>
         ) : null}
       </div>
@@ -236,6 +272,76 @@ export default function LeadDetailPage() {
               </p>
             </article>
           </div>
+
+          {lead.client ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+              <div>
+                <p className="text-sm font-medium text-navy">
+                  Linked client · {lead.client.firstName}{' '}
+                  {lead.client.lastName}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+                  This lead has been converted into the clients book.
+                </p>
+              </div>
+              <Link
+                href={`/clients/${lead.client.id}`}
+                className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#13729a]"
+              >
+                Open client
+              </Link>
+            </div>
+          ) : (
+            <form
+              onSubmit={onForm(convert)}
+              className="space-y-3 rounded-lg border border-slate-200 bg-surface p-4 dark:border-slate-700"
+            >
+              <div>
+                <h2 className="text-sm font-medium text-navy">
+                  Convert to client
+                </h2>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  Creates a client from this lead (or links an existing ID
+                  number). Name and phone come from the lead.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Field label="ID number">
+                  <TextInput name="idNumber" required maxLength={20} />
+                </Field>
+                <Field label="City">
+                  <TextInput name="city" required defaultValue={lead.area ?? ''} />
+                </Field>
+                <Field label="Address line 1">
+                  <TextInput name="addressLine1" required />
+                </Field>
+                <Field label="Address line 2">
+                  <TextInput name="addressLine2" />
+                </Field>
+                <Field label="Province">
+                  <TextInput name="province" />
+                </Field>
+                <Field label="Postal code">
+                  <TextInput name="postalCode" />
+                </Field>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <input
+                  type="checkbox"
+                  name="markWon"
+                  value="true"
+                  defaultChecked
+                  className="rounded border-slate-300"
+                />
+                Mark lead as won when converting
+              </label>
+              <FormActions>
+                <PrimaryButton type="submit" disabled={busy}>
+                  {convert.isPending ? 'Converting…' : 'Convert to client'}
+                </PrimaryButton>
+              </FormActions>
+            </form>
+          )}
 
           <form
             onSubmit={onForm(assign)}

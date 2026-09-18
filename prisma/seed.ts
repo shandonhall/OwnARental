@@ -7,6 +7,8 @@ import {
   EndOfTermStage,
   FicaStatus,
   FineImportStatus,
+  LeadSource,
+  LeadStage,
   LedgerEntryStatus,
   LedgerEntryType,
   PlanType,
@@ -1071,9 +1073,87 @@ async function main() {
     ],
   });
 
+  const adminUser = await prisma.user.findFirst({
+    where: { email: 'admintest@ownarental.co.za' },
+  });
+
+  await prisma.lead.deleteMany({});
+  const demoLeads = [
+    {
+      firstName: 'Thabo',
+      lastName: 'Mokoena',
+      cellphone: '0821112233',
+      email: 'thabo.mokoena@example.com',
+      area: 'Soweto',
+      salaryBand: 'R15k–R20k',
+      rentalType: 'Rent to own',
+      vehiclePreference: 'Polo / similar hatch',
+      hasValidDriversLicence: true,
+      source: LeadSource.META_LEAD_FORM,
+      sourceDetail: 'DEMO',
+      campaignName: 'Keys as soon as today',
+      stage: LeadStage.NEW,
+      notes: '[DEMO] Seeded sample lead — fresh inbound. Safe to delete.',
+    },
+    {
+      firstName: 'Naledi',
+      lastName: 'Sithole',
+      cellphone: '0834455667',
+      email: 'naledi.sithole@example.com',
+      area: 'Pretoria',
+      salaryBand: 'R20k–R25k',
+      rentalType: 'Monthly rental',
+      vehicleNeededTiming: 'This month',
+      hasValidDriversLicence: true,
+      source: LeadSource.WEBSITE,
+      sourceDetail: 'DEMO',
+      stage: LeadStage.CONTACTED,
+      firstAttemptAt: daysAgo(2),
+      firstContactAt: daysAgo(1),
+      lastContactAt: daysAgo(1),
+      notes: '[DEMO] Seeded sample lead — contacted, still qualifying. Safe to delete.',
+    },
+    {
+      firstName: 'Johan',
+      lastName: 'Botha',
+      cellphone: '0847788990',
+      email: 'johan.botha@example.com',
+      area: 'Centurion',
+      salaryBand: 'R25k+',
+      rentalType: 'Rent to own',
+      vehiclePreference: 'Bakkie',
+      hasValidDriversLicence: true,
+      source: LeadSource.OTHER,
+      sourceDetail: 'DEMO',
+      stage: LeadStage.APPROVED,
+      notes: '[DEMO] Seeded sample lead — ready to convert to client. Safe to delete.',
+    },
+  ];
+
+  for (const lead of demoLeads) {
+    const created = await prisma.lead.create({
+      data: {
+        ...lead,
+        createdByUserId: adminUser?.id ?? null,
+        assignedUserId: adminUser?.id ?? null,
+        assignedAt: adminUser ? daysAgo(1) : null,
+      },
+    });
+    await prisma.leadStageHistory.create({
+      data: {
+        leadId: created.id,
+        fromStage: null,
+        toStage: lead.stage,
+        actorUserId: adminUser?.id ?? null,
+        reason: 'Seeded demo lead',
+      },
+    });
+  }
+
   console.log('Seeded demo data:');
   console.log(`  Clients  ${clients.length}`);
   console.log(`  Vehicles ${vehicles.length}`);
+  console.log(`  Leads    ${demoLeads.length}`);
   console.log(
     '  Contracts: active / arrears / draft / EOT pipeline / completed',
   );

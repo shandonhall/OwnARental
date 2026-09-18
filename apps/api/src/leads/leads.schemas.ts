@@ -111,3 +111,19 @@ export const logLeadContactSchema = z.object({
 });
 
 export type LogLeadContactDto = z.infer<typeof logLeadContactSchema>;
+
+/** Fields a Lead lacks that Client requires. Name/phone/email come from the lead. */
+export const convertLeadSchema = z.object({
+  idNumber: z.string().min(5).max(20),
+  addressLine1: z.string().min(1).max(200),
+  addressLine2: optionalText,
+  city: z.string().min(1).max(100),
+  province: optionalText,
+  postalCode: z.preprocess(
+    emptyToNull,
+    z.string().max(20).nullable().optional(),
+  ),
+  markWon: z.boolean().optional().default(true),
+});
+
+export type ConvertLeadDto = z.infer<typeof convertLeadSchema>;

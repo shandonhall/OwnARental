@@ -19,6 +19,12 @@ function sourceLabel(source: string) {
   return source.replaceAll('_', ' ');
 }
 
+function isDemoLead(card: Pick<Lead, 'sourceDetail' | 'notes'>) {
+  const detail = card.sourceDetail?.trim().toUpperCase() ?? '';
+  const notes = card.notes?.trim().toUpperCase() ?? '';
+  return detail === 'DEMO' || notes.startsWith('[DEMO]');
+}
+
 function LeadCard({
   card,
   busy,
@@ -31,6 +37,7 @@ function LeadCard({
   onAdvance: () => void;
 }) {
   const next = NEXT_STAGE[card.stage];
+  const demo = isDemoLead(card);
 
   return (
     <article className="rounded-lg border border-slate-200 bg-surface p-3 shadow-sm dark:border-slate-700">
@@ -46,9 +53,16 @@ function LeadCard({
             {card.cellphone}
           </p>
         </div>
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          {sourceLabel(card.source)}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          {demo ? (
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+              Demo
+            </span>
+          ) : null}
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            {sourceLabel(card.source)}
+          </span>
+        </div>
       </div>
       {card.area ? (
         <p className="mt-2 text-xs text-navy">{card.area}</p>

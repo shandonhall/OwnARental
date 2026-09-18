@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,10 +13,12 @@ import {
   NotificationKind,
   NotificationSeverity,
 } from '../generated/prisma/enums';
+import { ClientsService } from '../clients/clients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LEAD_STAGES } from './leads.schemas';
 import type {
   AssignLeadDto,
+  ConvertLeadDto,
   CreateLeadDto,
   ListLeadsQuery,
   LogLeadContactDto,
@@ -59,7 +62,10 @@ const leadInclude = {
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clients: ClientsService,
+  ) {}
 
   async getBoard(query: ListLeadsQuery) {
     const leads = await this.findMany(query);
@@ -411,6 +417,216 @@ export class LeadsService {
     });
 
     return this.serialize(lead);
+  }
+
+  async convertToClient(id: string, body: ConvertLeadDto, actor: User) {
+    const existing = await this.requireLead(id);
+    if (existing.clientId) {
+      throw new BadRequestException(
+        'This lead is already linked to a client',
+      );
+    }
+    if (existing.stage === LeadStage.CLOSED_LOST) {
+      throw new BadRequestException(
+        'Cannot convert a closed-lost lead. Re-open the stage first.',
+      );
+    }
+
+    const idNumber = body.idNumber.trim();
+    let clientId: string;
+    let createdNew = false;
+
+    const existingClient = await this.prisma.client.findUnique({
+      where: { idNumber },
+    });
+
+    if (existingClient) {
+      clientId = existingClient.id;
+    } else {
+      try {
+        const noteParts = [
+          existing.notes?.trim() || null,
+          `Converted from lead ${existing.id}`,
+        ].filter(Boolean);
+        const client = await this.clients.create({
+          firstName: existing.firstName,
+          lastName: existing.lastName,
+          idNumber,
+          phone: existing.cellphone,
+          email: existing.email,
+          addressLine1: body.addressLine1.trim(),
+          addressLine2: body.addressLine2 ?? null,
+          city: body.city.trim(),
+          province: body.province ?? null,
+          postalCode: body.postalCode ?? null,
+          notes: noteParts.join('\n'),
+        });
+        clientId = client.id;
+        createdNew = true;
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException(
+            'A client with this ID number already exists',
+          );
+        }
+        throw error;
+      }
+    }
+
+    const markWon = body.markWon !== false;
+    const shouldCloseWon =
+      markWon && existing.stage !== LeadStage.CLOSED_WON;
+
+    const lead = await this.prisma.$transaction(async (tx) => {
+      await tx.lead.update({
+        where: { id },
+        data: {
+          clientId,
+          ...(shouldCloseWon
+            ? {
+                stage: LeadStage.CLOSED_WON,
+                closedAt: existing.closedAt ?? new Date(),
+              }
+            : {}),
+        },
+      });
+
+      if (shouldCloseWon) {
+        await tx.leadStageHistory.create({
+          data: {
+            leadId: id,
+            fromStage: existing.stage,
+            toStage: LeadStage.CLOSED_WON,
+            actorUserId: actor.id,
+            reason: createdNew
+              ? 'Converted to new client'
+              : 'Linked to existing client',
+          },
+        });
+      }
+
+      return tx.lead.findUniqueOrThrow({
+        where: { id },
+        include: leadInclude,
+      });
+    });
+
+    return this.serialize(lead);
+  }
+
+  /**
+   * Ingest a lead from GHL / Meta (flexible payload keys).
+   * Idempotent on externalLeadId when provided.
+   */
+  async ingestExternalLead(payload: Record<string, unknown>) {
+    const pick = (...keys: string[]) => {
+      for (const key of keys) {
+        const value = payload[key];
+        if (value == null) continue;
+        const text = String(value).trim();
+        if (text) return text;
+      }
+      return null;
+    };
+
+    const firstName =
+      pick('firstName', 'first_name', 'First Name', 'first name') ?? 'Unknown';
+    const lastName =
+      pick('lastName', 'last_name', 'Last Name', 'last name') ?? 'Lead';
+    const cellphone =
+      pick(
+        'cellphone',
+        'phone',
+        'Phone',
+        'phone_number',
+        'mobile',
+        'Mobile Phone',
+      ) ?? null;
+    if (!cellphone || cellphone.length < 7) {
+      throw new BadRequestException(
+        'Inbound lead requires a phone number (phone / cellphone)',
+      );
+    }
+
+    const email = pick('email', 'Email', 'email_address');
+    const externalLeadId = pick(
+      'externalLeadId',
+      'external_lead_id',
+      'lead_id',
+      'id',
+      'contact_id',
+      'contactId',
+    );
+    const campaignName = pick(
+      'campaignName',
+      'campaign_name',
+      'Campaign Name',
+      'campaign',
+    );
+    const adName = pick('adName', 'ad_name', 'Ad Name', 'ad');
+    const formName = pick('formName', 'form_name', 'Form Name', 'form');
+    const platform = pick('platform', 'Platform') ?? 'facebook';
+    const area = pick('area', 'city', 'City', 'location');
+    const notes = pick('notes', 'Notes', 'message', 'Message');
+    const sourceDetail = pick('sourceDetail', 'source_detail') ?? 'GHL webhook';
+
+    if (externalLeadId) {
+      const existing = await this.prisma.lead.findFirst({
+        where: { externalLeadId },
+        include: leadInclude,
+      });
+      if (existing) {
+        return {
+          ok: true,
+          duplicate: true,
+          lead: this.serialize(existing),
+        };
+      }
+    }
+
+    const lead = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.lead.create({
+        data: {
+          firstName,
+          lastName,
+          cellphone,
+          email,
+          area,
+          source: LeadSource.META_LEAD_FORM,
+          sourceDetail,
+          platform,
+          campaignName,
+          adName,
+          formName,
+          externalLeadId,
+          notes,
+          utmSource: pick('utm_source', 'utmSource'),
+          utmCampaign: pick('utm_campaign', 'utmCampaign'),
+        },
+      });
+      await tx.leadStageHistory.create({
+        data: {
+          leadId: created.id,
+          fromStage: null,
+          toStage: LeadStage.NEW,
+          actorUserId: null,
+          reason: 'Inbound GHL / Meta lead',
+        },
+      });
+      return tx.lead.findUniqueOrThrow({
+        where: { id: created.id },
+        include: leadInclude,
+      });
+    });
+
+    return {
+      ok: true,
+      duplicate: false,
+      lead: this.serialize(lead),
+    };
   }
 
   private async findMany(query: ListLeadsQuery) {

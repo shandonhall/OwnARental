@@ -686,6 +686,22 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  convertLead: (
+    id: string,
+    data: {
+      idNumber: string;
+      addressLine1: string;
+      addressLine2?: string | null;
+      city: string;
+      province?: string | null;
+      postalCode?: string | null;
+      markWon?: boolean;
+    },
+  ) =>
+    apiFetch<Lead>(`/leads/${id}/convert`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   globalSearch: (q: string, limit = 8) =>
     apiFetch<GlobalSearchResponse>(
