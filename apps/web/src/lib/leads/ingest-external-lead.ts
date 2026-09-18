@@ -1,7 +1,7 @@
 import {
   LeadSource,
   LeadStage,
-} from '../../../../api/src/generated/prisma/enums';
+} from '@/generated/prisma/enums';
 import { getPrisma } from '@/lib/prisma';
 
 function pick(

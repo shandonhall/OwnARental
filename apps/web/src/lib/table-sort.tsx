@@ -45,7 +45,7 @@ function compareValues(av: SortValue, bv: SortValue, dir: SortDir) {
 export function useTableSort<T, K extends string>(
   rows: T[],
   accessors: Record<K, (row: T) => SortValue>,
-  defaultKey: K,
+  defaultKey: NoInfer<K>,
   defaultDir: SortDir = 'asc',
 ) {
   const [sortKey, setSortKey] = useState<K>(defaultKey);

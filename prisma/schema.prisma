@@ -7,6 +7,13 @@ generator client {
   moduleFormat = "cjs"
 }
 
+// Next.js (Vercel) webhook helpers — keep client inside the web app tree.
+generator web {
+  provider     = "prisma-client"
+  output       = "../apps/web/src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
 datasource db {
   provider = "postgresql"
 }
