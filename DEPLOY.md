@@ -1,42 +1,46 @@
-# Deploy Own A Rental (leads + dashboard)
+# Deploy Own A Rental — Facebook leads on Vercel (no Railway)
 
-This stack is a **monorepo**: Next.js web + NestJS API + Supabase Postgres.
-Facebook leads via GoHighLevel need a **public API URL**, so hosting is split.
+For now we only host what you need for **Facebook → GHL → leads board**.
 
-## Recommended setup
-
-| Piece | Where | Why |
-|-------|--------|-----|
-| Dashboard (Next) | **Vercel** | Static/SSR front-end |
-| API (Nest) | **Railway / Render / Fly** | Always-on Node (schedulers, webhooks, Prisma) |
-| Database / Auth | **Supabase** (already) | Postgres + Auth |
-
-> Nest does **not** belong on Vercel alone — telematics/GHL/fines schedulers need a long-running process.
+| Piece | Where |
+|-------|--------|
+| Dashboard + lead webhook | **Vercel** |
+| Database / Auth | **Supabase** (already) |
+| Full Nest ops API | Local for now |
 
 ---
 
-## 1) API host (do this first)
+## 1) Deploy to Vercel
 
-Deploy `apps/api` (or the whole monorepo with start command `npm run start:prod -w api` after build).
+1. Import GitHub repo `shandonhall/OwnARental`.
+2. Root directory: **repo root** (uses `vercel.json`).
+3. Set env vars:
 
-**Env on the API host** (from `prisma/.env` + GHL secrets):
+| Name | Value |
+|------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `NEXT_PUBLIC_API_URL` | Leave as your local API for now, or omit until API is hosted |
+| `DATABASE_URL` | Same Supabase Postgres URL as `prisma/.env` (needed for webhook inserts) |
+| `GHL_LEADS_WEBHOOK_SECRET` | Long random string you invent |
 
-- `DATABASE_URL`, `DIRECT_URL`
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (token validation)
-- `WEB_ORIGIN` = your Vercel URL, e.g. `https://ownarental.vercel.app`
-- `PORT` = provided by the host
-- GHL outbound (optional): `GHL_API_KEY`, `GHL_LOCATION_ID`, …
-- **Inbound Facebook leads:** `GHL_LEADS_WEBHOOK_SECRET` = a long random string
+4. Deploy.
 
-Health check: `GET https://<api-host>/api/health`
+Webhook URL (after deploy):
 
-### GHL → Own A Rental leads webhook
+```text
+POST https://<your-app>.vercel.app/api/webhooks/ghl/leads
+Header: x-oar-webhook-secret: <GHL_LEADS_WEBHOOK_SECRET>
+```
 
-1. In GHL, create a workflow triggered by **Facebook Lead Form** (or inbound webhook from Meta).
-2. Add action **Webhook** →  
-   `POST https://<api-host>/api/webhooks/ghl/leads`
-3. Header: `x-oar-webhook-secret: <same as GHL_LEADS_WEBHOOK_SECRET>`
-4. Body: JSON including at least phone + name. Supported keys (flexible):
+---
+
+## 2) Connect GoHighLevel / Facebook
+
+1. In GHL, workflow trigger: **Facebook Lead Form** (or form submitted).
+2. Action: **Webhook** → the Vercel URL above.
+3. Custom header: `x-oar-webhook-secret` = same secret as Vercel env.
+4. JSON body must include a phone + name. Example:
 
 ```json
 {
@@ -51,40 +55,25 @@ Health check: `GET https://<api-host>/api/health`
 }
 ```
 
-Idempotent on `contact_id` / `external_lead_id` / `id` when present.
+Leads land on `/leads` with source `META_LEAD_FORM`. Duplicates with the same `contact_id` are ignored.
+
+**Note:** Demo seeded leads show an amber **Demo** badge. Live Meta leads will not.
 
 ---
 
-## 2) Vercel (web)
-
-1. Import the GitHub repo `shandonhall/OwnARental` into Vercel.
-2. Root directory: repo root (uses `vercel.json`).
-3. Env on Vercel:
-
-| Name | Value |
-|------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-| `NEXT_PUBLIC_API_URL` | `https://<api-host>/api` |
-
-4. Deploy. Login uses Supabase Auth against the same project as local.
-
----
-
-## 3) Demo leads
-
-Seeded leads use `sourceDetail: "DEMO"` and notes starting with `[DEMO]`.  
-The board/detail UI shows an amber **Demo** badge so they are not confused with live Meta leads.
-
-Reseed locally: `npm run prisma:seed` (wipes and recreates demo fleet + demo leads).
-
----
-
-## Local test of the webhook
+## 3) Local test
 
 ```bash
-curl -X POST http://localhost:3001/api/webhooks/ghl/leads ^
+curl -X POST http://localhost:3000/api/webhooks/ghl/leads ^
   -H "Content-Type: application/json" ^
   -H "x-oar-webhook-secret: YOUR_SECRET" ^
   -d "{\"first_name\":\"Test\",\"last_name\":\"Lead\",\"phone\":\"0820000000\",\"contact_id\":\"test-1\"}"
 ```
+
+(Requires `DATABASE_URL` and `GHL_LEADS_WEBHOOK_SECRET` in `apps/web/.env.local`.)
+
+---
+
+## Later (optional)
+
+When you want the **full** hosted dashboard (fleet, map, Nest APIs), add an always-on API host (Railway/Render/Fly) and point `NEXT_PUBLIC_API_URL` at it. Not required for Facebook lead ingest.
