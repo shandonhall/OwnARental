@@ -1,0 +1,7 @@
+.env
+.env.*
+prisma/.env
+**/.env
+**/.env.*
+.git-sync-log.txt
+git-sync-log.txt

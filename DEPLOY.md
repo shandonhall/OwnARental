@@ -10,11 +10,25 @@ For now we only host what you need for **Facebook → GHL → leads board**.
 
 ---
 
-## 1) Deploy to Vercel
+## 1) Deploy to Vercel (npm workspaces monorepo)
 
-1. Import GitHub repo `shandonhall/OwnARental`.
-2. Root directory: **repo root** (uses `vercel.json`).
-3. Set env vars:
+Next.js lives in `apps/web`. Do **not** copy `.next` to the repo root.
+
+### Project settings
+
+| Setting | Value |
+|---------|--------|
+| **Root Directory** | `apps/web` |
+| Framework | Next.js (auto) |
+| Install Command | from `apps/web/vercel.json`: `cd ../.. && npm install` |
+| Build Command | from `apps/web/vercel.json`: `cd ../.. && npm run prisma:generate && npm run build -w web` |
+| Output Directory | leave empty (Next.js default) |
+
+`apps/web/vercel.json` already sets install/build. Confirm Root Directory is `apps/web` in the Vercel dashboard (Settings → General).
+
+### Environment variables
+
+Set these in the Vercel project (Production + Preview as needed):
 
 | Name | Value |
 |------|--------|
@@ -22,9 +36,12 @@ For now we only host what you need for **Facebook → GHL → leads board**.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 | `NEXT_PUBLIC_API_URL` | Leave as your local API for now, or omit until API is hosted |
 | `DATABASE_URL` | Same Supabase Postgres URL as `prisma/.env` (needed for webhook inserts) |
+| `DIRECT_URL` | Direct (non-pooler) Postgres URL — preferred for Prisma CLI; optional for generate if `DATABASE_URL` is set |
 | `GHL_LEADS_WEBHOOK_SECRET` | Long random string you invent |
 
-4. Deploy.
+Build runs `prisma generate` because clients under `apps/*/src/generated` are gitignored.
+
+4. Deploy (push to `main` or Redeploy in the dashboard).
 
 Webhook URL (after deploy):
 
