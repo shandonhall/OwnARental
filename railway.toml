@@ -1,0 +1,13 @@
+# Railway: deploy the Nest API from the monorepo root.
+# In Railway dashboard → Settings → set these if needed:
+#   Build command: npm install && npm run prisma:generate && npm run build -w api
+#   Start command: npm run start:prod -w api
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install && npm run prisma:generate && npm run build -w api"
+
+[deploy]
+startCommand = "npm run start:prod -w api"
+healthcheckPath = "/api/health"
+restartPolicyType = "ON_FAILURE"
