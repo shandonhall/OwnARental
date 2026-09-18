@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npm run prisma:generate && npm run build -w web && rm -rf .next && cp -R apps/web/.next .next"
+  "buildCommand": "npm run prisma:generate && npm run build -w web && node -e \"const fs=require('fs');fs.rmSync('.next',{recursive:true,force:true});fs.cpSync('apps/web/.next','.next',{recursive:true})\""
 }
