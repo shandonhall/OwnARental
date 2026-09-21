@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { api, statusLabel, type VehicleStatus } from '@/lib/api';
+import { api, apiUnreachableMessage, statusLabel, type VehicleStatus } from '@/lib/api';
 import { useTableSort } from '@/lib/table-sort';
 
 const STATUS_FILTERS: Array<{ value: '' | VehicleStatus; label: string }> = [
@@ -154,7 +154,7 @@ export default function FleetPage() {
             {query.isError && (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-danger">
-                  Could not load fleet. Is the API running on port 3001?
+                  {apiUnreachableMessage('fleet')}
                 </td>
               </tr>
             )}

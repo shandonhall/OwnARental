@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, apiUnreachableMessage } from '@/lib/api';
 import { useTableSort } from '@/lib/table-sort';
 
 function ficaClass(status: string) {
@@ -104,7 +104,7 @@ export default function ClientsPage() {
             {query.isError && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-danger">
-                  Could not load clients. Is the API running on port 3001?
+                  {apiUnreachableMessage('clients')}
                 </td>
               </tr>
             )}

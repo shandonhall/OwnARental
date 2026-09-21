@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getApiBaseUrl } from '@/lib/api';
 import { createClient } from '@/lib/supabase/client';
 
 type Mode = 'signin' | 'change' | 'forgot';
@@ -57,7 +58,7 @@ export default function LoginForm() {
     if (data.session?.access_token) {
       try {
         await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/auth/me`,
+          `${getApiBaseUrl()}/auth/me`,
           {
             headers: {
               Authorization: `Bearer ${data.session.access_token}`,

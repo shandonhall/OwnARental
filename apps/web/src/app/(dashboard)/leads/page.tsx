@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { api, type Lead, type LeadStage } from '@/lib/api';
+import { api, apiUnreachableMessage, type Lead, type LeadStage } from '@/lib/api';
 
 const NEXT_STAGE: Partial<Record<LeadStage, LeadStage>> = {
   NEW: 'CONTACTED',
@@ -201,7 +201,7 @@ export default function LeadsBoardPage() {
         <p className="text-slate-600 dark:text-slate-300">Loading leads…</p>
       ) : null}
       {board.isError ? (
-        <p className="text-danger">Could not load the leads board.</p>
+        <p className="text-danger">{apiUnreachableMessage('the leads board')}</p>
       ) : null}
 
       {board.data ? (

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   api,
+  apiUnreachableMessage,
   roleLabel,
   statusLabel,
   taskCategoryHint,
@@ -573,8 +574,7 @@ export default function HomeDashboardPage() {
 
       {query.isError ? (
         <p className="text-danger">
-          Could not load the dashboard overview. Is the API running on port
-          3001?
+          {apiUnreachableMessage('the dashboard overview')}
         </p>
       ) : null}
 

@@ -1,7 +1,35 @@
 import { createClient } from '@/lib/supabase/client';
 
+/** Nest API base (…/api). Empty env falls back to local Nest — not same-origin Next. */
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+  process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://localhost:3001/api';
+
+function apiBaseLooksLocal(base: string) {
+  try {
+    const host = new URL(base).hostname;
+    return host === 'localhost' || host === '127.0.0.1';
+  } catch {
+    return /localhost|127\.0\.0\.1/.test(base);
+  }
+}
+
+/** User-facing hint when Nest-backed fetches fail (overview, fleet, leads board, …). */
+export function apiUnreachableMessage(resource = 'data') {
+  const onHostedSite =
+    typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1';
+
+  if (onHostedSite && apiBaseLooksLocal(API_BASE)) {
+    return `Could not load ${resource}. This deployment has no hosted Nest API — set NEXT_PUBLIC_API_URL to your API URL, or run Nest locally (port 3001) for development. Lead webhooks on this site do not need Nest.`;
+  }
+
+  return `Could not load ${resource}. Is the API running on port 3001?`;
+}
+
+export function getApiBaseUrl() {
+  return API_BASE;
+}
 
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'FLEET_MANAGER' | 'SALES' | 'FINANCE';
 
