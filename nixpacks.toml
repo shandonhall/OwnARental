@@ -1,0 +1,14 @@
+# Railway: Nest API from monorepo root.
+# Prisma 7 + Nest 11 require Node 20.19+ (not Nixpacks default 18).
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run prisma:generate && npm run build -w api"]
+
+[start]
+cmd = "npm run start:prod -w api"
