@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, apiUnreachableMessage, type Lead, type LeadStage } from '@/lib/api';
 
 const NEXT_STAGE: Partial<Record<LeadStage, LeadStage>> = {
@@ -19,6 +19,16 @@ function sourceLabel(source: string) {
   return source.replaceAll('_', ' ');
 }
 
+function timeSince(iso: string, now: number) {
+  const minutes = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60_000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h ago`;
+}
+
 function isDemoLead(card: Pick<Lead, 'sourceDetail' | 'notes'>) {
   const detail = card.sourceDetail?.trim().toUpperCase() ?? '';
   const notes = card.notes?.trim().toUpperCase() ?? '';
@@ -27,11 +37,13 @@ function isDemoLead(card: Pick<Lead, 'sourceDetail' | 'notes'>) {
 
 function LeadCard({
   card,
+  now,
   busy,
   onMove,
   onAdvance,
 }: {
   card: Lead;
+  now: number;
   busy: boolean;
   onMove: (stage: LeadStage) => void;
   onAdvance: () => void;
@@ -51,6 +63,12 @@ function LeadCard({
           </Link>
           <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
             {card.cellphone}
+          </p>
+          <p
+            className="mt-0.5 text-xs text-slate-500 dark:text-slate-400"
+            title={new Date(card.createdAt).toLocaleString('en-ZA')}
+          >
+            Arrived {timeSince(card.createdAt, now)}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -125,6 +143,12 @@ export default function LeadsBoardPage() {
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const board = useQuery({
     queryKey: ['leads-board', search],
@@ -222,6 +246,7 @@ export default function LeadsBoardPage() {
                   <LeadCard
                     key={card.id}
                     card={card}
+                    now={now}
                     busy={movingId === card.id}
                     onMove={(stage) => {
                       if (stage === card.stage) return;
