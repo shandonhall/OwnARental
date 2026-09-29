@@ -29,6 +29,14 @@ function timeSince(iso: string, now: number) {
   return `${days}d ${hours % 24}h ago`;
 }
 
+function arrivalTone(card: Pick<Lead, 'stage' | 'createdAt'>, now: number) {
+  if (card.stage !== 'NEW') return 'text-slate-500 dark:text-slate-400';
+  const minutes = (now - new Date(card.createdAt).getTime()) / 60_000;
+  if (minutes < 15) return 'text-success';
+  if (minutes < 60) return 'text-warning';
+  return 'font-medium text-danger';
+}
+
 function isDemoLead(card: Pick<Lead, 'sourceDetail' | 'notes'>) {
   const detail = card.sourceDetail?.trim().toUpperCase() ?? '';
   const notes = card.notes?.trim().toUpperCase() ?? '';
@@ -65,7 +73,7 @@ function LeadCard({
             {card.cellphone}
           </p>
           <p
-            className="mt-0.5 text-xs text-slate-500 dark:text-slate-400"
+            className={`mt-0.5 text-xs ${arrivalTone(card, now)}`}
             title={new Date(card.createdAt).toLocaleString('en-ZA')}
           >
             Arrived {timeSince(card.createdAt, now)}
