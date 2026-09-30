@@ -152,11 +152,19 @@ export default function LeadsBoardPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [refreshing, setRefreshing] = useState(false);
+  const [justRefreshed, setJustRefreshed] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!justRefreshed) return;
+    const timer = setTimeout(() => setJustRefreshed(false), 3_000);
+    return () => clearTimeout(timer);
+  }, [justRefreshed]);
 
   const board = useQuery({
     queryKey: ['leads-board', search],
@@ -179,6 +187,15 @@ export default function LeadsBoardPage() {
     },
     onSettled: () => setMovingId(null),
   });
+
+  async function refresh() {
+    setRefreshing(true);
+    setJustRefreshed(false);
+    const result = await board.refetch();
+    setRefreshing(false);
+    setNow(Date.now());
+    if (!result.isError) setJustRefreshed(true);
+  }
 
   const total = board.data?.total ?? 0;
   const newCount = useMemo(
@@ -214,10 +231,15 @@ export default function LeadsBoardPage() {
           />
           <button
             type="button"
-            onClick={() => void board.refetch()}
-            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-navy hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+            onClick={() => void refresh()}
+            disabled={refreshing}
+            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-navy hover:bg-slate-50 disabled:cursor-wait disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800"
           >
-            Refresh
+            {refreshing
+              ? 'Refreshing…'
+              : justRefreshed
+                ? 'Updated just now'
+                : 'Refresh'}
           </button>
           <Link
             href="/leads/new"
