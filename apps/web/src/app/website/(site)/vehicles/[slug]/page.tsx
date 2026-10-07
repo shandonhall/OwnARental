@@ -14,7 +14,8 @@ import {
 } from '@/components/site/icons';
 import { JsonLd } from '@/components/site/json-ld';
 import { RequirementsList } from '@/components/site/requirements-list';
-import { AvailabilityBadge, VehicleCard } from '@/components/site/vehicle-card';
+import { AvailabilityBadge } from '@/components/site/vehicle-card';
+import { VehicleCarousel } from '@/components/site/vehicle-carousel';
 import { VehicleGallery } from '@/components/site/vehicle-gallery';
 import {
   SITE_CONTACT,
@@ -85,7 +86,7 @@ export default async function VehicleDetailPage({ params }: { params: Params }) 
 
   const others = (await getWebsiteVehicles())
     .filter((item) => item.slug !== vehicle.slug && item.availability !== 'UNAVAILABLE')
-    .slice(0, 4);
+    .slice(0, 8);
 
   return (
     <>
@@ -285,13 +286,9 @@ export default async function VehicleDetailPage({ params }: { params: Params }) 
                 View all vehicles
               </Link>
             </div>
-            <ul className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-              {others.map((item) => (
-                <li key={item.slug}>
-                  <VehicleCard vehicle={item} />
-                </li>
-              ))}
-            </ul>
+            <div className="mt-8">
+              <VehicleCarousel vehicles={others} label="More vehicles" />
+            </div>
           </div>
         </section>
       ) : null}

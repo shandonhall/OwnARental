@@ -8,7 +8,7 @@ import { JsonLd } from '@/components/site/json-ld';
 import { RequirementsList } from '@/components/site/requirements-list';
 import { SectionHeading } from '@/components/site/section-heading';
 import { Testimonials } from '@/components/site/testimonials';
-import { VehicleCard } from '@/components/site/vehicle-card';
+import { VehicleCarousel } from '@/components/site/vehicle-carousel';
 import {
   SITE_CONTACT,
   canonicalUrl,
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const featured = await getFeaturedVehicles(4);
+  const featured = await getFeaturedVehicles();
 
   return (
     <>
@@ -205,13 +205,9 @@ export default async function HomePage() {
               <ArrowRightIcon className="h-4 w-4" />
             </Link>
           </div>
-          <ul className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            {featured.map((vehicle) => (
-              <li key={vehicle.slug}>
-                <VehicleCard vehicle={vehicle} />
-              </li>
-            ))}
-          </ul>
+          <div className="mt-8">
+            <VehicleCarousel vehicles={featured} label="Featured vehicles" />
+          </div>
           <p className="mt-6 max-w-3xl text-xs leading-relaxed text-[var(--oar-grey)]">
             {PRICING_DISCLAIMER}
           </p>

@@ -227,11 +227,13 @@ export async function getWebsiteVehicles(): Promise<WebsiteVehicle[]> {
   return VEHICLES;
 }
 
-export async function getFeaturedVehicles(limit = 4): Promise<WebsiteVehicle[]> {
-  const featured = VEHICLES.filter(
-    (vehicle) => vehicle.featured && vehicle.availability !== 'UNAVAILABLE',
-  );
-  return (featured.length ? featured : VEHICLES).slice(0, limit);
+/** Featured vehicles first, then the rest of the available stock. */
+export async function getFeaturedVehicles(limit = 8): Promise<WebsiteVehicle[]> {
+  const available = VEHICLES.filter((vehicle) => vehicle.availability !== 'UNAVAILABLE');
+  return [
+    ...available.filter((vehicle) => vehicle.featured),
+    ...available.filter((vehicle) => !vehicle.featured),
+  ].slice(0, limit);
 }
 
 export async function getVehicleBySlug(
