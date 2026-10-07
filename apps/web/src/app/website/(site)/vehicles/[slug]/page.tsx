@@ -132,8 +132,8 @@ export default async function VehicleDetailPage({ params }: { params: Params }) 
       />
 
       <div className="bg-white">
-        <div className="site-container py-6 sm:py-10">
-          <nav aria-label="Breadcrumb" className="mb-5 text-sm text-[var(--oar-grey)]">
+        <div className="site-container py-5 sm:py-7">
+          <nav aria-label="Breadcrumb" className="mb-4 text-sm text-[var(--oar-grey)]">
             <ol className="flex flex-wrap items-center gap-1.5">
               <li className="flex items-center gap-1.5">
                 <Link href={sitePath('/')} className="hover:text-[var(--oar-red)]">
@@ -153,19 +153,19 @@ export default async function VehicleDetailPage({ params }: { params: Params }) 
             </ol>
           </nav>
 
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-12">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-8">
             <VehicleGallery photos={vehicle.photos} title={fullTitle} />
 
-            <div className="lg:sticky lg:top-28 lg:self-start">
+            <div className="lg:sticky lg:top-24 lg:self-start">
               <AvailabilityBadge status={vehicle.availability} />
-              <h1 className="site-display mt-3 text-4xl leading-tight font-bold text-[var(--oar-navy)] sm:text-5xl">
+              <h1 className="site-display mt-2 text-3xl leading-tight font-bold text-[var(--oar-navy)] sm:text-4xl">
                 {title}
               </h1>
               {vehicle.variant ? (
-                <p className="mt-1 text-lg text-[var(--oar-grey)]">{vehicle.variant}</p>
+                <p className="mt-0.5 text-[var(--oar-grey)]">{vehicle.variant}</p>
               ) : null}
 
-              <div className="mt-6 rounded-xl bg-[var(--oar-mist)] p-5">
+              <div className="mt-4 rounded-xl bg-[var(--oar-mist)] p-5">
                 {vehicle.monthlyRental != null ? (
                   <>
                     <p className="text-sm font-medium text-[var(--oar-grey)]">Monthly rental</p>
@@ -206,7 +206,7 @@ export default async function VehicleDetailPage({ params }: { params: Params }) 
                 ) : null}
               </div>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <Link href={applyHref} className="site-btn site-btn-primary site-btn-lg">
                   Apply Now
                 </Link>
@@ -233,12 +233,12 @@ export default async function VehicleDetailPage({ params }: { params: Params }) 
             </div>
           </div>
 
-          <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-12">
+          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
             <section aria-labelledby="specs-heading">
               <h2 id="specs-heading" className="site-h2 !text-3xl">
                 Vehicle details
               </h2>
-              <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {specs.map(({ label, value, icon: Icon }) => (
                   <div key={label} className="flex items-start gap-3 rounded-lg border border-slate-200 p-4">
                     <Icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--oar-blue)]" />
@@ -251,7 +251,7 @@ export default async function VehicleDetailPage({ params }: { params: Params }) 
                   </div>
                 ))}
               </dl>
-              <p className="mt-6 text-xs leading-relaxed text-[var(--oar-grey)]">{PRICING_DISCLAIMER}</p>
+              <p className="mt-4 text-xs leading-relaxed text-[var(--oar-grey)]">{PRICING_DISCLAIMER}</p>
             </section>
 
             <section aria-labelledby="qualify-heading" className="rounded-xl bg-[var(--oar-navy)] p-6 sm:p-8">

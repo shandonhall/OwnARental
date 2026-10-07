@@ -18,7 +18,7 @@ export function VehicleGallery({ photos, title }: { photos: VehiclePhoto[]; titl
 
   if (!current) {
     return (
-      <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-slate-200 bg-[var(--oar-mist)] text-[var(--oar-grey)]">
+      <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-slate-200 bg-[var(--oar-mist)] text-[var(--oar-grey)] sm:aspect-[3/2]">
         Photos coming soon
       </div>
     );
@@ -27,7 +27,7 @@ export function VehicleGallery({ photos, title }: { photos: VehiclePhoto[]; titl
   return (
     <div>
       <div
-        className="relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200 bg-white"
+        className="relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200 bg-white sm:aspect-[3/2]"
         role="region"
         aria-roledescription="carousel"
         aria-label={`${title} photos`}
@@ -55,7 +55,7 @@ export function VehicleGallery({ photos, title }: { photos: VehiclePhoto[]; titl
           fill
           priority={index === 0}
           sizes="(min-width: 1024px) 58vw, 100vw"
-          className="object-contain p-4 sm:p-8"
+          className="object-contain p-3 sm:p-5"
         />
         {multiple ? (
           <>
