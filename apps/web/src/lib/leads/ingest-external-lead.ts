@@ -17,13 +17,24 @@ function pick(
   return null;
 }
 
+export type IngestLeadOptions = {
+  source?: LeadSource;
+  historyReason?: string;
+  vehiclePreference?: string | null;
+  hasValidDriversLicence?: boolean | null;
+};
+
 /**
- * Ingest a lead from GHL / Meta (flexible payload keys).
+ * Ingest a lead from GHL / Meta (flexible payload keys) or the public website.
  * Idempotent on externalLeadId when provided.
  * Mirrors Nest LeadsService.ingestExternalLead for Vercel serverless.
  */
-export async function ingestExternalLead(payload: Record<string, unknown>) {
+export async function ingestExternalLead(
+  payload: Record<string, unknown>,
+  options: IngestLeadOptions = {},
+) {
   const prisma = getPrisma();
+  const source = options.source ?? LeadSource.META_LEAD_FORM;
 
   const firstName =
     pick(payload, 'firstName', 'first_name', 'First Name', 'first name') ??
@@ -101,8 +112,10 @@ export async function ingestExternalLead(payload: Record<string, unknown>) {
         cellphone,
         email,
         area,
-        source: LeadSource.META_LEAD_FORM,
+        source,
         sourceDetail,
+        vehiclePreference: options.vehiclePreference ?? null,
+        hasValidDriversLicence: options.hasValidDriversLicence ?? null,
         platform,
         campaignName,
         adName,
@@ -119,7 +132,7 @@ export async function ingestExternalLead(payload: Record<string, unknown>) {
         fromStage: null,
         toStage: LeadStage.NEW,
         actorUserId: null,
-        reason: 'Inbound GHL / Meta lead',
+        reason: options.historyReason ?? 'Inbound GHL / Meta lead',
       },
     });
     return created;

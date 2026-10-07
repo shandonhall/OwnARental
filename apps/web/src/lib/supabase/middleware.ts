@@ -7,13 +7,29 @@ function isPublicPath(pathname: string) {
     pathname === '/login/reset' ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/website') ||
-    pathname.startsWith('/api/webhooks/')
+    pathname.startsWith('/api/webhooks/') ||
+    pathname.startsWith('/api/website/')
+  );
+}
+
+/** Public marketing routes never need a Supabase session lookup. */
+function isPublicSitePath(pathname: string) {
+  return (
+    pathname === '/website' ||
+    pathname.startsWith('/website/') ||
+    pathname.startsWith('/api/website/') ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml'
   );
 }
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
   const pathname = request.nextUrl.pathname;
+  if (isPublicSitePath(pathname)) {
+    return NextResponse.next({ request });
+  }
+
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
