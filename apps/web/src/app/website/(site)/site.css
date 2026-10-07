@@ -1,0 +1,180 @@
+/* Public website styles. Scoped to .site-root so the dashboard is unaffected.
+   Kept in the components layer so Tailwind utilities on the same element still win. */
+
+@layer components {
+.site-root {
+  --oar-red: #c01725;
+  --oar-red-dark: #9e121e;
+  --oar-gold: #eab024;
+  --oar-blue: #1680ab;
+  --oar-navy: #1a2832;
+  --oar-ink: #020b0f;
+  --oar-mist: #eef3f6;
+  --oar-grey: #5f6b73;
+  color: var(--oar-ink);
+  background: #fff;
+  overflow-x: clip;
+}
+
+.site-root .site-container {
+  width: 100%;
+  max-width: 76rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .site-root .site-container {
+    padding-inline: 2rem;
+  }
+}
+
+.site-root .site-display {
+  font-family: var(--font-display), 'Barlow Condensed', Helvetica, Arial, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.site-root .site-eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--oar-red);
+}
+
+.site-root .site-section {
+  padding-block: 4rem;
+}
+
+@media (min-width: 1024px) {
+  .site-root .site-section {
+    padding-block: 5.5rem;
+  }
+}
+
+.site-root .site-h2 {
+  font-family: var(--font-display), 'Barlow Condensed', Helvetica, Arial, sans-serif;
+  font-size: clamp(1.875rem, 1.4rem + 1.8vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.08;
+  color: var(--oar-navy);
+}
+
+/* Buttons: 44px+ touch targets */
+.site-root .site-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.site-root .site-btn-lg {
+  min-height: 3.25rem;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+}
+
+.site-root .site-btn-primary {
+  background: var(--oar-red);
+  color: #fff;
+}
+
+.site-root .site-btn-primary:hover {
+  background: var(--oar-red-dark);
+}
+
+.site-root .site-btn-whatsapp {
+  background: #25d366;
+  color: #fff;
+}
+
+.site-root .site-btn-whatsapp:hover {
+  background: #1ebe5b;
+}
+
+.site-root .site-btn-outline {
+  border: 1.5px solid color-mix(in srgb, var(--oar-navy) 25%, transparent);
+  color: var(--oar-navy);
+  background: #fff;
+}
+
+.site-root .site-btn-outline:hover {
+  border-color: var(--oar-navy);
+}
+
+.site-root .site-btn-light {
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  color: #fff;
+}
+
+.site-root .site-btn-light:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fff;
+}
+
+.site-root :focus-visible {
+  outline: 3px solid var(--oar-gold);
+  outline-offset: 2px;
+}
+
+.site-root .site-footer-heading {
+  font-family: var(--font-display), 'Barlow Condensed', Helvetica, Arial, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.site-root .site-skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 50;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--oar-navy);
+  color: #fff;
+}
+
+.site-root .site-skip-link:focus {
+  top: 1rem;
+}
+
+.site-root .site-input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.625rem 0.875rem;
+  border: 1.5px solid #cfd8de;
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 1rem;
+  color: var(--oar-ink);
+}
+
+.site-root .site-input:focus {
+  border-color: var(--oar-blue);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oar-blue) 20%, transparent);
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-root *,
+  .site-root *::before,
+  .site-root *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

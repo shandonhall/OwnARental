@@ -1,23 +1,26 @@
 import type { Metadata } from 'next';
-import { Barlow_Condensed, DM_Sans } from 'next/font/google';
-import './website.css';
-
-const display = Barlow_Condensed({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-marketing',
-});
-
-const body = DM_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-body',
-});
+import {
+  SITE_INDEXABLE,
+  SITE_NAME,
+  SITE_URL,
+} from '@/lib/site/site-config';
 
 export const metadata: Metadata = {
-  title: 'Own A Rental | Giving You Wheels',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} | Long-Term Vehicle Rental in Randburg`,
+    template: `%s | ${SITE_NAME}`,
+  },
   description:
-    'Long-term rental and rent-to-own for ITC-listed, bank-declined, and first-time buyers in Randburg.',
+    'Long-term vehicle rental from Own A Rental in Newlands, Randburg. Browse available vehicles and apply online.',
+  robots: SITE_INDEXABLE
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    locale: 'en_ZA',
+  },
 };
 
 export default function WebsiteLayout({
@@ -25,9 +28,5 @@ export default function WebsiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className={`${display.variable} ${body.variable} website-root`}>
-      {children}
-    </div>
-  );
+  return children;
 }

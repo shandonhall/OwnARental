@@ -1,3 +1,5 @@
+import { SITE_CONTACT as BASE_CONTACT } from './site/site-config';
+
 export const QUALIFY_ITEMS = [
   '6 months payslips',
   '6 months bank statements',
@@ -274,13 +276,7 @@ export const CLIENT_QUOTES = [
 ] as const;
 
 export const SITE_CONTACT = {
-  phonePrimary: '+27 11 477 6222',
-  phonePrimaryTel: '+27114776222',
-  phoneSecondary: '+27 71 040 7799',
-  phoneSecondaryTel: '+27710407799',
-  email: 'sales@ownarental.co.za',
-  whatsapp: 'https://wa.me/27710407799',
-  address: '1 Main Road, Newlands, Randburg, 2092',
+  ...BASE_CONTACT,
   hours: 'Mon–Fri 08:00–17:00 · Sat by appointment',
 } as const;
 
